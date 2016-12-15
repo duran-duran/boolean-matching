@@ -1,0 +1,14 @@
+/build
+/test_circuits
+*.config
+*.creator
+*.files
+*.includes
+*~
+*.autosave
+*.user
+alanmi-abc-f3bca91bd507/arch_flags
+alanmi-abc-f3bca91bd507/**/*.o
+alanmi-abc-f3bca91bd507/**/*.d
+*.swo
+*.swp

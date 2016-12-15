@@ -1,0 +1,382 @@
+%{
+#include <iostream>
+#include <string>
+#include <map>
+#include <vector>
+
+#include "circuit.h"
+
+//#define PRINT_ITEMS_AND_GATES
+
+enum ItemType { 
+    ITEM_PORT,
+    ITEM_INPUT,
+    ITEM_OUTPUT,
+    ITEM_WIRE,
+};
+
+struct Gate {
+    std::string name;
+    Function type;
+    std::vector<std::string> items;
+    Gate(const Function &_type, const std::vector<std::string> &_items) : name(), type(_type), items(_items) {}
+    Gate(const std::string &_name, const Function &_type, const std::vector<std::string> &_items) : name(_name), type(_type), items(_items) {}
+};
+
+std::string circuit_name;
+
+std::map<std::string, ItemType> items;
+std::vector<Gate> gates;
+
+std::vector<std::string> word_list;
+std::string word;
+Function gate_type;
+
+extern "C" {
+    extern int yylineno;
+    typedef struct yy_buffer_state *YY_BUFFER_STATE;
+    extern YY_BUFFER_STATE yy_scan_string(const char *str);
+    extern void yy_delete_buffer(YY_BUFFER_STATE buffer);
+    int yyparse(void);
+    int yylex(void);
+    int yywrap(void) {
+        return 1;
+    }
+}
+
+void yyerror(const std::string &error) {
+    std::cerr << "Error: " << error << " at line " << yylineno << std::endl;
+}
+
+std::string delete_comments(const std::string &str) {
+    std::string result;
+    bool out = true;
+    bool eol = false;
+    bool skip;
+    for (std::size_t i = 0; i < str.length(); ++i) {
+        skip = false;
+        if (out && (i + 1 < str.length())) {
+            if (str[i] == '/') {
+                if (str[i + 1] == '*') {
+                    out = false;
+                    eol = false;
+                    ++i;
+                    skip = true;
+                }
+                if (str[i + 1] == '/') {
+                    out = false;
+                    eol = true;
+                    ++i;
+                    skip = true;
+                }
+            }
+        }
+        if (!out && !skip) {
+            if (eol) {
+                if (str[i] == '\n') {
+                    out = true;
+                }
+            } else {
+                if ((str[i] == '*') && (i + 1 < str.length())) {
+                    if (str[i + 1] == '/') {
+                        out = true;
+                        ++i;
+                        skip = true;
+                    }
+                }
+            }
+        }
+        if (out && !skip) {
+            result += str[i];
+        }
+    }
+    return result;
+}
+
+Circuit *parse_verilog(const std::string &input) {
+    items.clear();
+    gates.clear();
+    word_list.clear();
+
+    std::string input_ = delete_comments(input);
+    YY_BUFFER_STATE buffer = yy_scan_string(input_.c_str());
+    yyparse();
+    yy_delete_buffer(buffer);
+
+#ifdef PRINT_ITEMS_AND_GATES
+    std::cout << "Items:" << std::endl;
+    for (auto &i : items) {
+        std::cout << "\t" << i.first << "\t";
+        switch (i.second) {
+        case ITEM_PORT:
+            std::cout << "PORT";
+            break;
+        case ITEM_INPUT:
+            std::cout << "INPUT";
+            break;
+        case ITEM_OUTPUT:
+            std::cout << "OUTPUT";
+            break;
+        case ITEM_WIRE:
+            std::cout << "WIRE";
+            break;
+        default:
+            std::cout << "UNDEFINED";
+            break;
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "Gates:" << std::endl;
+    for (auto &i : gates) {
+        std::cout << "\t";
+        switch (i.type) {
+        case FUNCTION_AND:
+            std::cout << "AND";
+            break;
+        case FUNCTION_NAND:
+            std::cout << "NAND";
+            break;
+        case FUNCTION_OR:
+            std::cout << "OR";
+            break;
+        case FUNCTION_NOR:
+            std::cout << "NOR";
+            break;
+        case FUNCTION_XOR:
+            std::cout << "XOR";
+            break;
+        case FUNCTION_XNOR:
+            std::cout << "XNOR";
+            break;
+        case FUNCTION_BUF:
+            std::cout << "BUF";
+            break;
+        case FUNCTION_NOT:
+            std::cout << "NOT";
+            break;
+        default:
+            std::cout << "UNDEFINED";
+            break;
+        }
+        std::cout << "\t(";
+        bool first = true;
+        for (auto &j : i.items) {
+            if (!first) {
+                std::cout << ", ";
+            }
+            std::cout << j;
+            first = false;
+        }
+        std::cout << ")" << std::endl;
+    }
+#endif
+
+    Circuit *circuit = new Circuit();
+    circuit->setName(circuit_name);
+    for (auto &i : items) {
+        switch (i.second) {
+        case ITEM_INPUT:
+            circuit->addNet(i.first, NET_INPUT);
+            break;
+        case ITEM_OUTPUT:
+            circuit->addNet(i.first, NET_OUTPUT);
+            break;
+        case ITEM_WIRE:
+            circuit->addNet(i.first, NET_DEFAULT);
+            break;
+        default:
+            break;        
+        }
+    }
+    for (auto &i : gates) {
+        Node *node = circuit->addNode(i.type);
+        node->name = i.name;
+        for (std::size_t j = 0; j < i.items.size(); ++j) {
+            if (!j) {
+                node->output_name = i.items[j];
+            } else {
+                node->input_names.push_back(i.items[j]);
+            }
+        }
+    }
+    circuit->construct();
+
+    return circuit;
+}
+%}
+
+%union
+{
+    int number;
+    int constant;
+    char *string;
+}
+
+%token <number> NUMBER
+%token <constant> CONSTANT
+%token <string> WORD
+%token MODULE TOP ENDMODULE INPUT OUTPUT WIRE AND NAND OR NOR XOR XNOR BUF NOT CUT BAR UNDERLINE LEFT_BRACKET RIGHT_BRACKET SEMICOLON COMMA
+
+%%
+target:
+    |
+    MODULE WORD LEFT_BRACKET word_list RIGHT_BRACKET SEMICOLON
+    {
+        circuit_name = $2;
+        for (auto &i : word_list) {
+            if (items.count(i)) {
+                yyerror("Duplicate port " + i);
+                exit(1);
+            }
+            items[i] = ITEM_PORT;
+        }
+        word_list.clear();
+    }
+    input_list
+    output_list
+    wire_list
+    gate_list
+    ENDMODULE
+
+word_list:
+    word
+    {
+        word_list.push_back(word);
+        word.clear();
+    }
+    |
+    word_list COMMA word
+    {
+        word_list.push_back(word);
+        word.clear();
+    }
+    |
+    word_list COMMA CONSTANT
+    {
+        if ($3) {
+            word_list.push_back(CONSTANT_1);
+        } else {
+            word_list.push_back(CONSTANT_0);
+        }
+    }
+
+word:
+    UNDERLINE
+    {
+        word += "_";
+    }
+    |
+    WORD
+    {
+        word += $1;
+        free($1);
+    }
+    |
+    word UNDERLINE
+    {
+        word += "_";
+    }
+    |
+    word WORD
+    {
+        word += $2;
+        free($2);
+    }
+
+input_list:
+    |
+    input_list INPUT word_list SEMICOLON
+    {
+        for (auto &i : word_list) {
+            if (!items.count(i)) {
+                yyerror("Port " + i + " not defined");
+                exit(1);
+            }
+            items[i] = ITEM_INPUT;
+        }
+        word_list.clear();
+    }
+
+output_list:
+    |
+    output_list OUTPUT word_list SEMICOLON
+    {
+        for (auto &i : word_list) {
+            if (!items.count(i)) {
+                yyerror("Port " + i + " not defined");
+                exit(1);
+            }
+            if (items[i] == ITEM_INPUT) {
+                yyerror("Port " + i + " already marked as input");
+                exit(1);
+            }
+            items[i] = ITEM_OUTPUT;
+        }
+        word_list.clear();
+    }
+
+wire_list:
+    |
+    wire_list WIRE word_list SEMICOLON
+    {
+        for (auto &i : word_list) {
+            if (!items.count(i)) {
+                items[i] = ITEM_WIRE;
+            }
+        }
+        word_list.clear();
+    }
+
+gate_list:
+    |
+    gate_list gate LEFT_BRACKET word_list RIGHT_BRACKET SEMICOLON
+    {
+        for (auto &i : word_list) {
+            if ((i == CONSTANT_0) || (i == CONSTANT_1)) {
+                continue;
+            }
+            if (!items.count(i)) {
+                yyerror("Undefined identifier " + i);
+                exit(1);
+            }
+        }
+        gates.push_back(Gate(gate_type, word_list));
+        word_list.clear();
+    }
+    |
+    gate_list CUT WORD LEFT_BRACKET word_list RIGHT_BRACKET SEMICOLON
+    {
+        for (auto &i : word_list) {
+            if ((i == CONSTANT_0) || (i == CONSTANT_1)) {
+                continue;
+            }
+            if (!items.count(i)) {
+                yyerror("Undefined identifier " + i);
+                exit(1);
+            }
+        }
+        gates.push_back(Gate($3, FUNCTION_CUT, word_list));
+        free($3);
+        word_list.clear();
+    }
+/**
+    TODO: Read cuts
+**/
+
+gate:
+    AND {gate_type = FUNCTION_AND;} 
+    | 
+    NAND {gate_type = FUNCTION_NAND;}
+    | 
+    OR  {gate_type = FUNCTION_OR;} 
+    | 
+    NOR {gate_type = FUNCTION_NOR;} 
+    | 
+    XOR {gate_type = FUNCTION_XOR;} 
+    | 
+    XNOR {gate_type = FUNCTION_XNOR;}
+    | 
+    BUF {gate_type = FUNCTION_BUF;}
+    | 
+    NOT {gate_type = FUNCTION_NOT;}
+%%
