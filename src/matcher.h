@@ -7,16 +7,57 @@
 
 #include "circuit.h"
 
+using IOSet = std::set<std::string>;
+using IOSupport = std::map<std::string, IOSet>;
+
+class IOSupportCalculator
+{
+public:
+    IOSupportCalculator(Circuit *cir);
+
+    IOSupport getOutputSupport();
+    static IOSupport swapSupport(const IOSupport& support);
+private:
+    Circuit *cir;
+    IOSupport supportCache;
+
+    IOSet getSupport(const std::string &p);
+};
+
+using Signature = std::string;
+using IOCluster = std::map<Signature, IOSet>;
+
 struct CircuitData
 {
-    std::set<std::string> matched_inputs, unmatched_inputs;
-    std::set<std::string> matched_outputs, unmatched_outputs;
+    CircuitData();
+    CircuitData(Circuit* cir);
 
-    std::multimap<std::string, std::string> input_support, output_support;
+    IOSet matched_inputs, unmatched_inputs;
+    IOSet matched_outputs, unmatched_outputs;
 
-    std::multimap<std::string, std::string> input_clusters, output_clusters;
+    IOSupport output_support, input_support;
 
-    std::map<std::string, std::string> input_signatures, output_signatures;
+    IOCluster output_clusters, input_clusters;
+
+    std::map<std::string, Signature> input_signatures, output_signatures;
+private:
+    void calculateInitClusters();
+};
+
+struct Matching
+{
+    IOCluster output_clusters1, input_clusters1,
+              output_clusters2, input_clusters2;
+    size_t score;
+    //actions
+
+    Matching(const IOCluster &o_clusters1, const IOCluster &i_clusters1,
+             const IOCluster &o_clusters2, const IOCluster &i_clusters2,
+             size_t score) :
+        output_clusters1(o_clusters1), input_clusters1(i_clusters1),
+        output_clusters2(o_clusters2), input_clusters2(i_clusters2),
+        score(score)
+    {}
 };
 
 
@@ -28,7 +69,7 @@ private:
     Circuit *cir1, *cir2;
     CircuitData data1, data2;
 
-    void reset();
+    Matching getResult();
 };
 
 #endif // __MATCHING_DATA_H__
