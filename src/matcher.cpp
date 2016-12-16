@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <utility>
+#include <limits>
 
 Matcher::Matcher(Circuit *cir1, Circuit *cir2) :
     cir1(cir1), cir2(cir2)
@@ -14,8 +15,8 @@ Matching Matcher::getResult()
 
     cur_match = Matching();
 
-//    while (!data2.unmatched_outputs.empty())
-//    {
+    while (true)
+    {
         auto unmatched_signatures = getCommonUnmatchedSignatures();
         auto signs1 = data1.getUnmatchedSignatures(),
              signs2 = data2.getUnmatchedSignatures(),
@@ -40,7 +41,17 @@ Matching Matcher::getResult()
             msigns1 = data1.getMatchedSignatures();
             msigns2 = data2.getMatchedSignatures();
         }
-//    }
+
+        auto signs = getMinDiffSignatures();
+        if (signs.first.empty() && signs.second.empty())
+            break;
+
+        auto unmatched_po_cluster = data2.unmatched_output_clusters.at(signs.second);
+        auto unmatched_po_it = unmatched_po_cluster.begin();
+        std::advance(unmatched_po_it, rand() % unmatched_po_cluster.size());
+        auto stuck_inputs2 = data2.stickUnmatchedInputs(*unmatched_po_it, signs.second.size() - signs.first.size());
+        cur_match.stuck_inputs2.insert(stuck_inputs2.begin(), stuck_inputs2.end());
+    }
 
     return cur_match;
 }
@@ -56,6 +67,35 @@ std::set<Signature> Matcher::getCommonUnmatchedSignatures()
     return common_unmatched_signs;
 }
 
+std::pair<Signature, Signature> Matcher::getMinDiffSignatures()
+{
+    auto unmatched_signs1 = data1.getUnmatchedSignatures(),
+         unmatched_signs2 = data2.getUnmatchedSignatures();
+
+    Signature sign1 = "",
+              sign2 = "";
+    size_t min_diff = std::numeric_limits<size_t>::max();
+
+    for (const auto& lhs : unmatched_signs1)
+    {
+        for (const auto& rhs : unmatched_signs2)
+        {
+            if (getPrefix(lhs) == getPrefix(rhs) && (rhs.size() > lhs.size()))
+            {
+                size_t diff = rhs.size() - lhs.size();
+                if (diff < min_diff)
+                {
+                    min_diff = diff;
+                    sign1 = lhs;
+                    sign2 = rhs;
+                }
+            }
+        }
+    }
+
+    return std::make_pair(sign1, sign2);
+}
+
 void Matcher::match(const std::string &po1, const std::string &po2)
 {
     if (data1.output_signatures.at(po1) != data2.output_signatures.at(po2))
@@ -63,7 +103,8 @@ void Matcher::match(const std::string &po1, const std::string &po2)
 
     auto new_io_clusters1 = data1.match(po1),
          new_io_clusters2 = data2.match(po2);
-    cur_match.input_matching.push_back(std::make_pair(new_io_clusters1.first, new_io_clusters2.first));
+    if (!new_io_clusters1.first.empty() && new_io_clusters2.first.empty())
+        cur_match.input_matching.push_back(std::make_pair(new_io_clusters1.first, new_io_clusters2.first));
     cur_match.output_matching.push_back(std::make_pair(new_io_clusters1.second, new_io_clusters2.second));
 
     constexpr size_t match_score = 10,
@@ -161,6 +202,43 @@ std::pair<IOSet, IOSet> CircuitData::match(const std::string &po)
     return std::make_pair(inputs, matched_output_clusters.at(new_po_sign));
 }
 
+IOSet CircuitData::stickUnmatchedInputs(const std::string &po, size_t n)
+{
+    IOSet stuck_inputs;
+    //careful here
+    for (size_t i = 0; i < n; ++i)
+    {
+        auto inputs = getUnmatchedInputs(po);
+        auto rand_pi_it = inputs.begin();
+        std::advance(rand_pi_it, rand() % inputs.size());
+
+        auto pi = *rand_pi_it;
+        stuck_inputs.insert(pi);
+
+        for (const auto &po : input_support.at(pi))
+        {
+            output_support.at(po).erase(pi);
+            Signature old_sign = output_signatures.at(po),
+                      new_sign = old_sign.substr(0, old_sign.length() - 1);
+            output_signatures.at(po) = new_sign;
+
+            if (unmatched_output_clusters.find(new_sign) == unmatched_output_clusters.end())
+                unmatched_output_clusters[new_sign] = IOSet();
+            unmatched_output_clusters.at(new_sign).insert(po);
+
+            unmatched_output_clusters.at(old_sign).erase(po);
+            if (unmatched_output_clusters.at(old_sign).empty())
+                unmatched_output_clusters.erase(old_sign);
+        }
+
+        unmatched_inputs.erase(pi);
+        input_support.erase(pi);
+        //input_signatures.erase(pi);
+        //input clusters ?
+    }
+    return stuck_inputs;
+}
+
 void CircuitData::calculateInitClusters()
 {
     for (const auto &sup : output_support)
@@ -243,4 +321,10 @@ Signature updateSignature(const Signature &old_sign, char cluster_id, size_t n)
     for (size_t i = start; i < start + n; ++i)
         new_sign[i] = cluster_id;
     return new_sign;
+}
+
+std::string getPrefix(Signature sign)
+{
+    constexpr char unmatched_id = '0';
+    return sign.substr(0, sign.find(unmatched_id));
 }

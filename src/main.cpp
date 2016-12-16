@@ -30,7 +30,7 @@ int main(int argc, char * argv[])
 //            std::cout << "Output " << sup.first << " has " << sup.second.size() << " PIs in its support" << std::endl;
 
         Matcher matcher(cir1, cir2);
-        for (size_t i = 0; i < 100; ++i)
+        for (size_t i = 0; i < 10; ++i)
             printMatching(matcher.getResult());
 
         return OK;
@@ -44,6 +44,11 @@ void printMatching(const Matching& match)
     std::cout << "MATCHING" << std::endl;
 
     std::cout << "SCORE=" << match.score << std::endl;
+
+    std::cout << "STUCK_INPUTS_2=[ ";
+    for (const auto &po : match.stuck_inputs2)
+        std::cout << po << " ";
+    std::cout << "]" << std::endl;
 
     for (const auto &i_matching : match.input_matching)
     {

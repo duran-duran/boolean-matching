@@ -28,6 +28,7 @@ using Signature = std::string;
 using IOCluster = std::map<Signature, IOSet>;
 
 Signature updateSignature(const Signature &old_sign, char cluster_id, size_t n);
+std::string getPrefix(Signature sign);
 
 struct CircuitData
 {
@@ -47,9 +48,9 @@ struct CircuitData
     std::set<Signature> getMatchedSignatures();
 
     std::pair<IOSet, IOSet> match(const std::string &po);
+    IOSet stickUnmatchedInputs(const std::string &po, size_t n);
 private:
     void calculateInitClusters();
-
     IOSet getUnmatchedInputs(const std::string &po);
 };
 
@@ -58,6 +59,7 @@ using IOMatching = std::vector<std::pair<IOSet, IOSet>>;
 struct Matching
 {
     IOMatching input_matching, output_matching;
+    IOSet stuck_inputs2;
     size_t score;
     //actions
 
@@ -77,6 +79,7 @@ private:
     Matching cur_match;
 
     std::set<Signature> getCommonUnmatchedSignatures();
+    std::pair<Signature, Signature> getMinDiffSignatures();
     void match(const std::string &po1, const std::string &po2);
 };
 
