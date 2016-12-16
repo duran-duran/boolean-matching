@@ -9,6 +9,8 @@ void printMatching(const Matching& match);
 
 int main(int argc, char * argv[])
 {
+    srand(time(NULL));
+
     if (argc < 3)
     {
         printf( "Wrong number of command-line arguments.\n" );
@@ -28,7 +30,8 @@ int main(int argc, char * argv[])
 //            std::cout << "Output " << sup.first << " has " << sup.second.size() << " PIs in its support" << std::endl;
 
         Matcher matcher(cir1, cir2);
-        printMatching(matcher.getResult());
+        for (size_t i = 0; i < 100; ++i)
+            printMatching(matcher.getResult());
 
         return OK;
     }
@@ -42,34 +45,34 @@ void printMatching(const Matching& match)
 
     std::cout << "SCORE=" << match.score << std::endl;
 
-    for (const auto &cluster : match.input_clusters1)
+    for (const auto &i_matching : match.input_matching)
     {
-        std::cout << "INPUT_CLUSTER_1=[ ";
-        for (const auto &i : cluster.second)
-            std::cout << i << " ";
-        std::cout << "]" << std::endl;
-    }
-    for (const auto &cluster : match.output_clusters1)
-    {
-        std::cout << "OUTPUT_CLUSTER_1=[ ";
-        for (const auto &o : cluster.second)
-            std::cout << o << " ";
-        std::cout << "]" << std::endl;
+        std::cout << "INPUT_GROUP=[ [ ";
+
+        for (const auto &pi : i_matching.first)
+            std::cout << pi << " ";
+
+        std::cout << "] [ ";
+
+        for (const auto &pi : i_matching.second)
+            std::cout << pi << " ";
+
+        std::cout << "] ]" << std::endl;
     }
 
-    for (const auto &cluster : match.input_clusters2)
+    for (const auto &o_matching : match.output_matching)
     {
-        std::cout << "INPUT_CLUSTER_2=[ ";
-        for (const auto &i : cluster.second)
-            std::cout << i << " ";
-        std::cout << "]" << std::endl;
-    }
-    for (const auto &cluster : match.output_clusters2)
-    {
-        std::cout << "OUTPUT_CLUSTER_2=[ ";
-        for (const auto &o : cluster.second)
-            std::cout << o << " ";
-        std::cout << "]" << std::endl;
+        std::cout << "OUTPUT_GROUP=[ [ ";
+
+        for (const auto &po : o_matching.first)
+            std::cout << po << " ";
+
+        std::cout << "] [ ";
+
+        for (const auto &po : o_matching.second)
+            std::cout << po << " ";
+
+        std::cout << "] ]" << std::endl;
     }
 
     std::cout << "END" << std::endl;

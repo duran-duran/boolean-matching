@@ -27,6 +27,8 @@ private:
 using Signature = std::string;
 using IOCluster = std::map<Signature, IOSet>;
 
+Signature updateSignature(const Signature &old_sign, char cluster_id, size_t n);
+
 struct CircuitData
 {
     CircuitData();
@@ -40,26 +42,27 @@ struct CircuitData
     IOCluster output_clusters, input_clusters;
 
     std::map<std::string, Signature> input_signatures, output_signatures;
+
+    std::set<Signature> getUnmatchedSignatures();
+    std::set<Signature> getMatchedSignatures();
+
+    IOSet match(const std::string &po);
 private:
     void calculateInitClusters();
+
+    IOSet getUnmatchedInputs(const std::string &po);
 };
+
+using IOMatching = std::vector<std::pair<IOSet, IOSet>>;
 
 struct Matching
 {
-    IOCluster output_clusters1, input_clusters1,
-              output_clusters2, input_clusters2;
+    IOMatching input_matching, output_matching;
     size_t score;
     //actions
 
-    Matching(const IOCluster &o_clusters1, const IOCluster &i_clusters1,
-             const IOCluster &o_clusters2, const IOCluster &i_clusters2,
-             size_t score) :
-        output_clusters1(o_clusters1), input_clusters1(i_clusters1),
-        output_clusters2(o_clusters2), input_clusters2(i_clusters2),
-        score(score)
-    {}
+    Matching() : score(0) {}
 };
-
 
 class Matcher
 {
@@ -70,6 +73,11 @@ public:
 private:
     Circuit *cir1, *cir2;
     CircuitData data1, data2;
+
+    Matching cur_match;
+
+    std::set<Signature> getCommonUnmatchedSignatures();
+    void match(const std::string &po1, const std::string &po2);
 };
 
 #endif // __MATCHING_DATA_H__
