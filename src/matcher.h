@@ -39,14 +39,14 @@ struct CircuitData
 
     IOSupport output_support, input_support;
 
-    IOCluster output_clusters, input_clusters;
+    IOCluster matched_output_clusters, unmatched_output_clusters, input_clusters;
 
     std::map<std::string, Signature> input_signatures, output_signatures;
 
     std::set<Signature> getUnmatchedSignatures();
     std::set<Signature> getMatchedSignatures();
 
-    IOSet match(const std::string &po);
+    std::pair<IOSet, IOSet> match(const std::string &po);
 private:
     void calculateInitClusters();
 

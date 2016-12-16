@@ -17,11 +17,15 @@ Matching Matcher::getResult()
 //    while (!data2.unmatched_outputs.empty())
 //    {
         auto unmatched_signatures = getCommonUnmatchedSignatures();
+        auto signs1 = data1.getUnmatchedSignatures(),
+             signs2 = data2.getUnmatchedSignatures(),
+             msigns1 = data1.getMatchedSignatures(),
+             msigns2 = data2.getMatchedSignatures();
         while(!unmatched_signatures.empty())
         {
             Signature min_common_sign = *(std::min_element(unmatched_signatures.begin(), unmatched_signatures.end()));
-            auto po_cluster1 = data1.output_clusters.at(min_common_sign),
-                 po_cluster2 = data2.output_clusters.at(min_common_sign);
+            auto po_cluster1 = data1.unmatched_output_clusters.at(min_common_sign),
+                 po_cluster2 = data2.unmatched_output_clusters.at(min_common_sign);
 
             auto rand_po1_it = po_cluster1.begin(),
                  rand_po2_it = po_cluster2.begin();
@@ -31,6 +35,10 @@ Matching Matcher::getResult()
             match(*rand_po1_it, *rand_po2_it);
 
             unmatched_signatures = getCommonUnmatchedSignatures();
+            signs1 = data1.getUnmatchedSignatures();
+            signs2 = data2.getUnmatchedSignatures();
+            msigns1 = data1.getMatchedSignatures();
+            msigns2 = data2.getMatchedSignatures();
         }
 //    }
 
@@ -53,14 +61,14 @@ void Matcher::match(const std::string &po1, const std::string &po2)
     if (data1.output_signatures.at(po1) != data2.output_signatures.at(po2))
         return;
 
-    cur_match.output_matching.push_back(std::make_pair(IOSet{po1}, IOSet{po2}));
+    auto new_io_clusters1 = data1.match(po1),
+         new_io_clusters2 = data2.match(po2);
+    cur_match.input_matching.push_back(std::make_pair(new_io_clusters1.first, new_io_clusters2.first));
+    cur_match.output_matching.push_back(std::make_pair(new_io_clusters1.second, new_io_clusters2.second));
 
-    auto input_cluster1 = data1.match(po1),
-         input_cluster2 = data2.match(po2);
-    cur_match.input_matching.push_back(std::make_pair(input_cluster1, input_cluster2));
-
-    constexpr size_t match_score = 10;
-    cur_match.score += match_score;
+    constexpr size_t match_score = 10,
+                     bridging_score = 1;
+    cur_match.score += match_score + (new_io_clusters2.second.size() - 1) * bridging_score;
 }
 
 CircuitData::CircuitData()
@@ -78,29 +86,23 @@ CircuitData::CircuitData(Circuit *cir) :
 std::set<Signature> CircuitData::getUnmatchedSignatures()
 {
     std::set<Signature> result;
-    for (const auto &cluster : output_clusters)
-    {
-        if (cluster.first.find('0') != std::string::npos)
-            result.insert(cluster.first);
-    }
+    for (const auto &cluster : unmatched_output_clusters)
+        result.insert(cluster.first);
     return result;
 }
 
 std::set<Signature> CircuitData::getMatchedSignatures()
 {
     std::set<Signature> result;
-    for (const auto &cluster : output_clusters)
-    {
-        if (cluster.first.find('0') == std::string::npos)
-            result.insert(cluster.first);
-    }
+    for (const auto &cluster : matched_output_clusters)
+        result.insert(cluster.first);
     return result;
 }
 
-IOSet CircuitData::match(const std::string &po)
+std::pair<IOSet, IOSet> CircuitData::match(const std::string &po)
 {
     if (unmatched_outputs.find(po) == unmatched_outputs.end())
-        return IOSet();
+        return std::make_pair(IOSet(), IOSet());
 
     matched_outputs.insert(po);
     unmatched_outputs.erase(po);
@@ -114,43 +116,49 @@ IOSet CircuitData::match(const std::string &po)
     constexpr char unmatched_id = '0';
     const char new_cluster_id = unmatched_id + getMatchedSignatures().size() + 1;
 
-    {
-        Signature old_sign = output_signatures.at(po),
-                  new_sign = updateSignature(old_sign, new_cluster_id, inputs.size());
-        output_signatures.at(po) = new_sign;
+    Signature old_po_sign = output_signatures.at(po),
+              new_po_sign = updateSignature(old_po_sign, new_cluster_id, inputs.size());
+    output_signatures.at(po) = new_po_sign;
 
-        if (output_clusters.find(new_sign) == output_clusters.end())
-            output_clusters[new_sign] = IOSet();
-        output_clusters.at(new_sign).insert(po);
+    if (matched_output_clusters.find(new_po_sign) == matched_output_clusters.end())
+        matched_output_clusters[new_po_sign] = IOSet();
+    matched_output_clusters.at(new_po_sign).insert(po);
 
-        output_clusters.at(old_sign).erase(po);
-        if (output_clusters.at(old_sign).empty())
-            output_clusters.erase(old_sign);
-    }
+    unmatched_output_clusters.at(old_po_sign).erase(po);
+    if (unmatched_output_clusters.at(old_po_sign).empty())
+        unmatched_output_clusters.erase(old_po_sign);
 
     for (const auto &uo : unmatched_outputs)
     {
         auto uo_support = output_support.at(uo);
+        Signature old_sign = output_signatures.at(uo),
+                  new_sign = old_sign;
         for (const auto &pi : inputs)
         {
             if (uo_support.find(pi) != uo_support.end())
+                new_sign = updateSignature(new_sign, new_cluster_id, 1);
+        }
+        if (new_sign != old_sign)
+        {
+            output_signatures.at(uo) = new_sign;
+
+            //if (new_sign == new_po_sign)
+            if (new_sign == new_po_sign)
+                matched_output_clusters.at(new_po_sign).insert(uo);
+            else
             {
-                Signature old_sign = output_signatures.at(uo),
-                          new_sign = updateSignature(old_sign, new_cluster_id, 1);
-                output_signatures.at(uo) = new_sign;
-
-                if (output_clusters.find(new_sign) == output_clusters.end())
-                    output_clusters[new_sign] = IOSet();
-                output_clusters.at(new_sign).insert(uo);
-
-                output_clusters.at(old_sign).erase(uo);
-                if (output_clusters.at(old_sign).empty())
-                    output_clusters.erase(old_sign);
+                if (unmatched_output_clusters.find(new_sign) == unmatched_output_clusters.end())
+                    unmatched_output_clusters[new_sign] = IOSet();
+                unmatched_output_clusters.at(new_sign).insert(uo);
             }
+
+            unmatched_output_clusters.at(old_sign).erase(uo);
+            if (unmatched_output_clusters.at(old_sign).empty())
+                unmatched_output_clusters.erase(old_sign);
         }
     }
 
-    return inputs;
+    return std::make_pair(inputs, matched_output_clusters.at(new_po_sign));
 }
 
 void CircuitData::calculateInitClusters()
@@ -159,9 +167,9 @@ void CircuitData::calculateInitClusters()
     {
         Signature sign(sup.second.size(), '0');
         output_signatures[sup.first] = sign;
-        if (output_clusters.find(sign) == output_clusters.end())
-            output_clusters[sign] = IOSet();
-        output_clusters[sign].insert(sup.first);
+        if (unmatched_output_clusters.find(sign) == unmatched_output_clusters.end())
+            unmatched_output_clusters[sign] = IOSet();
+        unmatched_output_clusters[sign].insert(sup.first);
     }
 }
 
