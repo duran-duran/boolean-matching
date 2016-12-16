@@ -23,6 +23,10 @@ int main(int argc, char * argv[])
         Circuit *cir1 = parse_verilog(FileUtils::load_file(in_file1));
         Circuit *cir2 = parse_verilog(FileUtils::load_file(in_file2));
 
+//        IOSupport support = IOSupportCalculator(cir1).getOutputSupport();
+//        for (auto& sup : support)
+//            std::cout << "Output " << sup.first << " has " << sup.second.size() << " PIs in its support" << std::endl;
+
         Matcher matcher(cir1, cir2);
         printMatching(matcher.getResult());
 

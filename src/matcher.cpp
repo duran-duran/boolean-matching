@@ -80,7 +80,7 @@ IOSet IOSupportCalculator::getSupport(const std::string &o)
         {
             supportCache.at(o).insert(i);
         }
-        else if (type == NET_DEFAULT)
+        else if (type == NET_DEFAULT || type == NET_OUTPUT)
         {
             auto addSupport = getSupport(i);
             supportCache.at(o).insert(addSupport.begin(), addSupport.end());
