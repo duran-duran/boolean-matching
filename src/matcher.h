@@ -65,11 +65,11 @@ class Matcher
 {
 public:
     Matcher(Circuit *cir1, Circuit *cir2);
+
+    Matching getResult();
 private:
     Circuit *cir1, *cir2;
     CircuitData data1, data2;
-
-    Matching getResult();
 };
 
 #endif // __MATCHING_DATA_H__
