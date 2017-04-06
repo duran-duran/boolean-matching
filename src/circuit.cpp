@@ -412,3 +412,48 @@ void Circuit::clearRenames() {
     renames.clear();
 }
 
+Circuit *Circuit::getCone(const std::string &po) const
+{
+    if (nets.find(po) == nets.end() || getNetType(po) != NetType::NET_OUTPUT)
+        return nullptr;
+
+    Circuit *cone = new Circuit();
+    cone->addNet(po, NetType::NET_OUTPUT);
+
+    std::set<Node *> cache;
+    getConeRec(cone, getNetInput(po), cache);
+    cone->construct();
+    return cone;
+}
+
+void Circuit::getConeRec(Circuit *cone, Node *node, std::set<Node *> &cache) const
+{
+    if (cache.find(node) != cache.end())
+        return;
+
+    cache.insert(node);
+
+    Node *newNode;
+    newNode = cone->addNode(node->function);
+
+    newNode->type = NODE_DEFAULT;
+    newNode->name = node->name;
+    newNode->output_name = node->output_name;
+    newNode->input_names = node->input_names;
+
+    for (auto *i : node->input)
+    {
+        if (cache.find(i) != cache.end())
+            continue;
+
+        if (i->type != NODE_INPUT && i->type != NODE_CONSTANT)
+        {
+            cone->addNet(i->output_name, NET_DEFAULT);
+            getConeRec(cone, i, cache);
+        }
+        else if (i->type == NODE_INPUT)
+        {
+            cone->addNet(i->output_name, NET_INPUT);
+        }
+    }
+}

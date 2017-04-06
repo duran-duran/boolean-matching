@@ -17,7 +17,7 @@ enum NodeType {
 
 /// Логическая функция
 enum Function {
-    FUNCTION_AND, 
+    FUNCTION_AND,
     FUNCTION_NAND,
     FUNCTION_OR,
     FUNCTION_NOR,
@@ -42,7 +42,7 @@ struct Node {
     std::vector<std::string> input_names; ///< Имена нетов входов
     std::string output_name; ///< Имя нета выхода
     Node *original; ///< Узел исходной схемы, соответствующий узлу конуса
-    Node(NodeType _type, Function _function); 
+    Node(NodeType _type, Function _function);
     Node(NodeType _type, bool _value);
     bool eval() const; ///< Рекурсивно вычисляет значение на выходе узла
 };
@@ -62,46 +62,64 @@ struct Net {
     Node *input; ///< Узел, выход которого соединён с данным нетом. Определяется автоматические при построении схемы.
     Net();
     Net(const std::string &_name, NetType _type);
-    void setInput(Node *node); 
+    void setInput(Node *node);
 };
 
 /// Схема
 class Circuit {
+public:
+    Circuit();
+    ~Circuit();
+
+    void setName(const std::string &new_name);
+    Node *addNode(Function function); ///< Добавление узла типа NODE_DEFAULT
+    void addNet(const std::string &name, NetType type); ///< Добавление нета
+
+    void construct(); ///< Построение схемы. Вызывается после добавления всех нетов, узлов схемы, а также заполнения input_names и output_name для всех этих узлов.
+    void print(bool abc_valid = false) const; ///< Вывод схемы в формате Verilog на стандартный поток вывода
+
+    const std::vector<std::string> &getInputs() const; ///< Получение списка имён нетов, являющихся входами
+    const std::vector<std::string> &getOutputs() const; ///< Получение списка имён нетов, являющихся выходами
+
+    const std::vector<Node *> &getNodes() const; ///< Получение списка узлов
+    const std::map<std::string, Net> &getNets() const; ///< Получение нетов
+
+    Node *getNetInput(const std::string &name) const; ///< Получение узла, выход которого связан с данным нетом
+    NetType getNetType(const std::string &name) const; ///< Получение типа нета
+
+    Circuit *getCone(const std::string &po) const;
+
+    void setInputValue(const std::string &name, bool value); ///< Установка значения на вход схемы
+    bool getInputValue(const std::string &name) const; ///< Получение значения на входе схемы
+    bool evalOutput(const std::string &name) const; ///< Вычисление значения на выходе схемы
+
+    void sortNodes(); ///< Топологическая сортировка узлов схемы
+    void renameNet(const std::string &old_name, const std::string &new_name); ///< Переименование нета для вывода
+    void clearRenames(); ///< Очистка переименований
+private:
     std::string name;
+
     static Node node_constant_0; ///< Узел-константа 0
     static Node node_constant_1; ///< Узел-константа 1
+
     std::vector<Node *> nodes; ///< Список всех обычных узлов схемы
     std::vector<Node *> service_nodes; ///< Список вспомогательных узлов схемы
+
     std::map<std::string, Net> nets; ///< Множество нетов схемы
     std::vector<std::string> inputs; ///< Имена всех нетов, являющихся входами
     std::vector<std::string> outputs; ///< Имена всех нетов, являющихся выходами
     std::map<std::string, std::string> renames;
+
     Circuit(const Circuit &);
     Circuit &operator=(const Circuit &);
+
     void setNetInput(const std::string &name, Node *node); ///< Привязка выхода узла к нету
-    Node *addNode(NodeType type, Function function); 
+    Node *addNode(NodeType type, Function function);
     Node *addNode(NodeType type, bool value);
+
+    void getConeRec(Circuit *cone, Node *node, std::set<Node *> &cache) const;
+
     void topsort(Node *node, std::set<Node *> &used,
         std::vector<Node *> &result) const; ///< Топологическая сортировка узлов
     const std::string &wire_name(const std::string &name) const;
-public:
-    Circuit();
-    ~Circuit();
-    void setName(const std::string &new_name);
-    Node *addNode(Function function); ///< Добавление узла типа NODE_DEFAULT
-    void addNet(const std::string &name, NetType type); ///< Добавление нета
-    void construct(); ///< Построение схемы. Вызывается после добавления всех нетов, узлов схемы, а также заполнения input_names и output_name для всех этих узлов. 
-    void print(bool abc_valid = false) const; ///< Вывод схемы в формате Verilog на стандартный поток вывода
-    const std::vector<std::string> &getInputs() const; ///< Получение списка имён нетов, являющихся входами
-    const std::vector<std::string> &getOutputs() const; ///< Получение списка имён нетов, являющихся выходами
-    Node *getNetInput(const std::string &name) const; ///< Получение узла, выход которого связан с данным нетом
-    void setInputValue(const std::string &name, bool value); ///< Установка значения на вход схемы
-    bool getInputValue(const std::string &name) const; ///< Получение значения на входе схемы
-    bool evalOutput(const std::string &name) const; ///< Вычисление значения на выходе схемы 
-    const std::vector<Node *> &getNodes() const; ///< Получение списка узлов
-    const std::map<std::string, Net> &getNets() const; ///< Получение нетов
-    NetType getNetType(const std::string &name) const; ///< Получение типа нета
-    void sortNodes(); ///< Топологическая сортировка узлов схемы
-    void renameNet(const std::string &old_name, const std::string &new_name); ///< Переименование нета для вывода
-    void clearRenames(); ///< Очистка переименований
 };
