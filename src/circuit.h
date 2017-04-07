@@ -65,6 +65,8 @@ struct Net {
     void setInput(Node *node);
 };
 
+using InVector = std::map<std::string, bool>;
+
 /// Схема
 class Circuit {
 public:
@@ -90,8 +92,10 @@ public:
     Circuit *getCone(const std::string &po) const;
 
     void setInputValue(const std::string &name, bool value); ///< Установка значения на вход схемы
+    void setInputVector(const InVector &in_vec);
     bool getInputValue(const std::string &name) const; ///< Получение значения на входе схемы
     bool evalOutput(const std::string &name) const; ///< Вычисление значения на выходе схемы
+    bool evalOutput(const std::string &po, const InVector &in_vec);
 
     void sortNodes(); ///< Топологическая сортировка узлов схемы
     void renameNet(const std::string &old_name, const std::string &new_name); ///< Переименование нета для вывода

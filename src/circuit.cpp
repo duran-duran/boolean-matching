@@ -1,5 +1,5 @@
 #include "circuit.h"
-
+#include "utils.h"
 #include <iostream>
 #include <algorithm>
 
@@ -177,6 +177,23 @@ void Circuit::setInputValue(const std::string &name, bool value) {
     }
 }
 
+void Circuit::setInputVector(const InVector &in_vec)
+{
+    if (in_vec.size() != inputs.size())
+    {
+        makeAssertion("Invalid input vector size");
+        return;
+    }
+
+    for (const auto& it : in_vec)
+    {
+        if (std::find(inputs.begin(), inputs.end(), it.first) == inputs.end())
+            makeAssertion("Invalid input name in input vector");
+
+        setInputValue(it.first, it.second);
+    }
+}
+
 bool Circuit::getInputValue(const std::string &name) const {
     Node *node = getNetInput(name);
     if (node) {
@@ -221,6 +238,18 @@ bool Circuit::evalOutput(const std::string &name) const {
         node->lazy = false;
     }
     return net.input->eval();
+}
+
+bool Circuit::evalOutput(const std::string &po, const InVector &in_vec)
+{
+    if (in_vec.size() != inputs.size())
+    {
+        makeAssertion("Invalid input vector size");
+        return false;
+    }
+
+    setInputVector(in_vec);
+    return evalOutput(po);
 }
 
 void Circuit::construct() {

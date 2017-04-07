@@ -1,8 +1,10 @@
 #include <iostream>
 
 #include "defines.h"
+#include "utils.h"
 #include "fileutils.h"
 #include "matcher.h"
+#include "simulator.h"
 #include "verilog.h"
 
 void printMatching(const Matching& match);
@@ -15,6 +17,31 @@ int main(int argc, char * argv[])
     {
         printf( "Wrong number of command-line arguments.\n" );
         return FAIL;
+    }
+
+    if (argc == 3)
+    {
+        char *in_file = argv[1];
+        const std::string po(argv[2]);
+
+        Circuit *cir = parse_verilog(FileUtils::load_file(in_file));
+
+        log("Getting cone for po %s", po.c_str());
+        Circuit *cone = cir->getCone(po);
+        cone->print();
+
+        log("Starting input simulation for po %s", po.c_str());
+        Simulator sim(cone);
+        auto input_properties = sim.simulate();
+
+        log("Input properties:");
+        for (const auto &it : input_properties)
+            log("%s: %s", it.first.c_str(), propSetToStr(it.second).c_str());
+
+        delete cir;
+        delete cone;
+
+        return OK;
     }
 
     if (argc == 3)
