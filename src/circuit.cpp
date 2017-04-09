@@ -504,6 +504,32 @@ void Circuit::invertInput(const std::string &pi)
     inv_node->input_names = {pi};
 }
 
+void Circuit::invertOutput(const std::string &po)
+{
+    auto it = std::find(outputs.begin(), outputs.end(), po);
+    if (it == outputs.end())
+    {
+        makeAssertion("There is no such output in circuit");
+        return;
+    }
+    outputs.erase(it);
+
+    Net &output_net = nets.at(po);
+    output_net.type = NetType::NET_DEFAULT; //change type from output
+    Node *output_node = output_net.input;
+
+    std::string inv_net_name = "not_" + po;
+    addNet(inv_net_name, NetType::NET_OUTPUT);
+    Node *inv_node = addNode(FUNCTION_NOT);
+
+    setNetInput(inv_net_name, inv_node);
+    inv_node->output_name = inv_net_name;
+
+    output_node->output.push_back(inv_node);
+    inv_node->input = {output_node};
+    inv_node->input_names = {po};
+}
+
 Circuit::Circuit(const Circuit &cir) :
     name("top")
 {

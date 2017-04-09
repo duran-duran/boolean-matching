@@ -50,7 +50,7 @@ int main(int argc, char * argv[])
 
         return OK;
     }
-    else if (cmd == "inv" && argc == 4)
+    else if (cmd == "inv_in" && argc == 4)
     {
         char *in_file = argv[2];
         const std::string pi(argv[3]);
@@ -61,6 +61,23 @@ int main(int argc, char * argv[])
         cir->print();
 
         cir->invertInput(pi);
+        cir->print();
+
+        delete cir;
+
+        return OK;
+    }
+    else if (cmd == "inv_out" && argc == 4)
+    {
+        char *in_file = argv[2];
+        const std::string po(argv[3]);
+
+        log("Inverting input %s", po.c_str());
+
+        Circuit *cir = parse_verilog(FileUtils::load_file(in_file));
+        cir->print();
+
+        cir->invertOutput(po);
         cir->print();
 
         delete cir;

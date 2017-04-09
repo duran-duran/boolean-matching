@@ -106,6 +106,7 @@ public:
 
     void stuckInput(const std::string &pi, bool value);
     void invertInput(const std::string &pi);
+    void invertOutput(const std::string &po);
 private:
     std::string name;
 
