@@ -9,30 +9,115 @@
 
 void printMatching(const Matching& match);
 
+void printUsage()
+{
+    std::cout << "Usage: ./matcher <command> <arguments>" << std::endl;
+    std::cout << "\t- stuck <in_file.v> <input_name> <value>" << std::endl;
+    std::cout << "\t- inv <in_file.v> <input_name>" << std::endl;
+    std::cout << "\t- cone <in_file.v> <output_name>" << std::endl;
+    std::cout << "\t- copy <in_file.v>" << std::endl;
+    std::cout << "\t- sim <in_file.v> <output_name> <num_of_iterations>" << std::endl;
+}
+
 int main(int argc, char * argv[])
 {
     srand(time(NULL));
 
-    if (argc < 3)
+    if (argc < 2)
     {
         printf( "Wrong number of command-line arguments.\n" );
+        printUsage();
         return FAIL;
     }
 
-    if (argc == 3)
+    std::string cmd(argv[1]);
+
+    if (cmd == "stuck" && argc == 5)
     {
-        char *in_file = argv[1];
-        const std::string po(argv[2]);
+        char *in_file = argv[2];
+        const std::string pi(argv[3]);
+        int value = std::atoi(argv[4]);
+
+        log("Stucking input %s with value %d", pi.c_str(), value);
 
         Circuit *cir = parse_verilog(FileUtils::load_file(in_file));
+        cir->print();
 
-        log("Getting cone for po %s", po.c_str());
+        cir->stuckInput(pi, value); //implicit cast to bool
+        cir->print();
+
+        delete cir;
+
+        return OK;
+    }
+    else if (cmd == "inv" && argc == 4)
+    {
+        char *in_file = argv[2];
+        const std::string pi(argv[3]);
+
+        log("Inverting input %s", pi.c_str());
+
+        Circuit *cir = parse_verilog(FileUtils::load_file(in_file));
+        cir->print();
+
+        cir->invertInput(pi);
+        cir->print();
+
+        delete cir;
+
+        return OK;
+    }
+    else if (cmd == "cone" && argc == 4)
+    {
+        char *in_file = argv[2];
+        const std::string po(argv[3]);
+
+        log("Getting cone for output %s", po.c_str());
+
+        Circuit *cir = parse_verilog(FileUtils::load_file(in_file));
+        cir->print();
+
         Circuit *cone = cir->getCone(po);
         cone->print();
 
-        log("Starting input simulation for po %s", po.c_str());
+        delete cir;
+        delete cone;
+
+        return OK;
+    }
+    else if (cmd == "copy" && argc == 3)
+    {
+        char *in_file = argv[2];
+
+        log("Copying circuit %s", in_file);
+
+        Circuit *cir = parse_verilog(FileUtils::load_file(in_file));
+        cir->print();
+
+        Circuit *cir_copy = new Circuit(*cir);
+        cir_copy->print();
+
+        delete cir;
+        delete cir_copy;
+
+        return OK;
+    }
+    else if (cmd == "sim" && argc == 5)
+    {
+        char *in_file = argv[2];
+        const std::string po(argv[3]);
+        std::size_t sim_iterations = std::atol(argv[4]);
+
+        log("Starting simulations for output %s (max = %u)", po.c_str(), sim_iterations);
+
+        Circuit *cir = parse_verilog(FileUtils::load_file(in_file));
+        cir->print();
+
+        Circuit *cone = cir->getCone(po);
+        cone->print();
+
         Simulator sim(cone);
-        auto input_properties = sim.simulate();
+        auto input_properties = sim.simulate(sim_iterations);
 
         log("Input properties:");
         for (const auto &it : input_properties)
@@ -43,25 +128,31 @@ int main(int argc, char * argv[])
 
         return OK;
     }
-
-    if (argc == 3)
+    else
     {
-        char *in_file1 = argv[1];
-        char *in_file2 = argv[2];
+        makeAssertion("Wrong command or number of arguments");
+        printUsage();
+        return FAIL;
+    }
 
-        Circuit *cir1 = parse_verilog(FileUtils::load_file(in_file1));
-        Circuit *cir2 = parse_verilog(FileUtils::load_file(in_file2));
+//    if (argc == 3)
+//    {
+//        char *in_file1 = argv[1];
+//        char *in_file2 = argv[2];
+
+//        Circuit *cir1 = parse_verilog(FileUtils::load_file(in_file1));
+//        Circuit *cir2 = parse_verilog(FileUtils::load_file(in_file2));
 
 //        IOSupport support = IOSupportCalculator(cir1).getOutputSupport();
 //        for (auto& sup : support)
 //            std::cout << "Output " << sup.first << " has " << sup.second.size() << " PIs in its support" << std::endl;
 
-        Matcher matcher(cir1, cir2);
-        for (size_t i = 0; i < 10; ++i)
-            printMatching(matcher.getResult());
+//        Matcher matcher(cir1, cir2);
+//        for (size_t i = 0; i < 10; ++i)
+//            printMatching(matcher.getResult());
 
-        return OK;
-    }
+//        return OK;
+//    }
 
     return OK;
 }

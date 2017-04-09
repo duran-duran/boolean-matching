@@ -12,17 +12,15 @@ Simulator::Simulator(Circuit *cir) :
     cir(cir)
 {}
 
-std::map<std::string, std::set<Property>> Simulator::simulate()
+std::map<std::string, std::set<Property>> Simulator::simulate(std::size_t max_iterations)
 {
     std::map<std::string, std::set<Property>> input_properties;
-
-    constexpr std::size_t sim_iterations = 1000;
 
     const std::string po = cir->getOutputs().front(); //only one output in cone
     for (const auto &pi : cir->getInputs())
     {
         input_properties.insert({pi, all_properties});
-        for (std::size_t it = 0; it < sim_iterations; ++it)
+        for (std::size_t it = 0; it < max_iterations; ++it)
         {
             auto vec_pair = generateDisjointPair(pi);
             log("Input vector 1 : %s", inVecToStr(vec_pair.first).c_str());
@@ -30,6 +28,9 @@ std::map<std::string, std::set<Property>> Simulator::simulate()
             checkRemoval(input_properties.at(pi),
                          vec_pair.first.at(pi), vec_pair.second.at(pi),
                          cir->evalOutput(po, vec_pair.first), cir->evalOutput(po, vec_pair.second));
+
+            if (input_properties.empty())
+                break;
         }
     }
     return input_properties;

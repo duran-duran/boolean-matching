@@ -18,7 +18,7 @@ class Simulator
 public:
     Simulator(Circuit *cir);
 
-    std::map<std::string, std::set<Property>> simulate();
+    std::map<std::string, std::set<Property>> simulate(std::size_t max_iterations);
 private:
     Circuit *cir;
 

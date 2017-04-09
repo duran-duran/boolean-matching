@@ -278,7 +278,7 @@ void Circuit::construct() {
     }
     for (std::size_t i = 0; i < nodes.size(); ++i) {
         for (std::size_t j = 0; j < nodes[i]->input.size(); ++j) {
-            if (nodes[i]->input[j]->type == NODE_DEFAULT) {
+            if (nodes[i]->input[j]->type == NODE_DEFAULT || nodes[i]->input[j]->type == NODE_INPUT) {
                 nodes[i]->input[j]->output.push_back(nodes[i]);
             }
         }
@@ -441,6 +441,88 @@ void Circuit::clearRenames() {
     renames.clear();
 }
 
+void Circuit::stuckInput(const std::string &pi, bool value)
+{
+    auto it = std::find(inputs.begin(), inputs.end(), pi);
+    if (it == inputs.end())
+    {
+        makeAssertion("There is no such input in circuit");
+        return;
+    }
+    inputs.erase(it);
+
+    Node *input_node = getNetInput(pi);
+
+    std::string constant_net_name = value ? CONSTANT_1 : CONSTANT_0;
+    Node *constant_node = value ? &node_constant_1 : &node_constant_0;
+
+    for (Node *node : input_node->output)
+    {
+        auto input_name_it = std::find(node->input_names.begin(), node->input_names.end(), pi);
+        *input_name_it = constant_net_name;
+
+        auto input_it = std::find(node->input.begin(), node->input.end(), input_node);
+        *input_it = constant_node;
+    }
+
+    auto service_node_it = std::find(service_nodes.begin(), service_nodes.end(), input_node);
+    service_nodes.erase(service_node_it);
+
+    nets.erase(pi);
+    delete input_node;
+}
+
+void Circuit::invertInput(const std::string &pi)
+{
+    auto it = std::find(inputs.begin(), inputs.end(), pi);
+    if (it == inputs.end())
+    {
+        makeAssertion("There is no such input in circuit");
+        return;
+    }
+
+    Node *input_node = getNetInput(pi);
+
+    std::string inv_net_name = "not_" + pi;
+    addNet(inv_net_name, NetType::NET_DEFAULT);
+    Node *inv_node = addNode(FUNCTION_NOT);
+
+    setNetInput(inv_net_name, inv_node);
+    inv_node->output_name = inv_net_name;
+
+    for (Node *node : input_node->output)
+    {
+        auto input_name_it = std::find(node->input_names.begin(), node->input_names.end(), pi);
+        *input_name_it = inv_net_name;
+
+        auto input_it = std::find(node->input.begin(), node->input.end(), input_node);
+        *input_it = inv_node;
+    }
+
+    input_node->output = {inv_node};
+    inv_node->input = {input_node};
+    inv_node->input_names = {pi};
+}
+
+Circuit::Circuit(const Circuit &cir) :
+    name("top")
+{
+    for (const auto &net : cir.getNets())
+        addNet(net.first, net.second.type);
+    for (const auto *node : cir.getNodes())
+    {
+        if (node->type == NodeType::NODE_DEFAULT)
+        {
+            Node *newNode = addNode(node->function);
+            newNode->type = NodeType::NODE_DEFAULT;
+            newNode->name = node->name;
+            newNode->output_name = node->output_name;
+            newNode->input_names = node->input_names;
+        }
+    }
+    construct();
+}
+
 Circuit *Circuit::getCone(const std::string &po) const
 {
     if (nets.find(po) == nets.end() || getNetType(po) != NetType::NET_OUTPUT)
@@ -482,6 +564,7 @@ void Circuit::getConeRec(Circuit *cone, Node *node, std::set<Node *> &cache) con
         }
         else if (i->type == NODE_INPUT)
         {
+            cache.insert(i);
             cone->addNet(i->output_name, NET_INPUT);
         }
     }

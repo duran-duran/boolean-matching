@@ -73,6 +73,9 @@ public:
     Circuit();
     ~Circuit();
 
+    Circuit(const Circuit &cir);
+    Circuit &operator=(const Circuit &) = delete;
+
     void setName(const std::string &new_name);
     Node *addNode(Function function); ///< Добавление узла типа NODE_DEFAULT
     void addNet(const std::string &name, NetType type); ///< Добавление нета
@@ -100,6 +103,9 @@ public:
     void sortNodes(); ///< Топологическая сортировка узлов схемы
     void renameNet(const std::string &old_name, const std::string &new_name); ///< Переименование нета для вывода
     void clearRenames(); ///< Очистка переименований
+
+    void stuckInput(const std::string &pi, bool value);
+    void invertInput(const std::string &pi);
 private:
     std::string name;
 
@@ -113,9 +119,6 @@ private:
     std::vector<std::string> inputs; ///< Имена всех нетов, являющихся входами
     std::vector<std::string> outputs; ///< Имена всех нетов, являющихся выходами
     std::map<std::string, std::string> renames;
-
-    Circuit(const Circuit &);
-    Circuit &operator=(const Circuit &);
 
     void setNetInput(const std::string &name, Node *node); ///< Привязка выхода узла к нету
     Node *addNode(NodeType type, Function function);

@@ -5,7 +5,7 @@
 
 void makeAssertion(const std::string &msg)
 {
-    std::cout << msg;
+    std::cout << msg << std::endl;
 }
 
 void log(const char *format, ...)
