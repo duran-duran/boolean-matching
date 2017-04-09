@@ -23,12 +23,15 @@ OBJECTS = $(OBJECTS_C) $(OBJECTS_CPP) $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/verilog
 
 EXECUTABLE = $(BUILD_DIR)/matcher
 
+ABC_DIR = ./alanmi-abc-f3bca91bd507
+ABC_LIB = $(BUILD_DIR)/libabc.a
+
 .PHONY: all clean
 
 all: $(BUILD_DIR) $(EXECUTABLE)
 
-$(EXECUTABLE): $(OBJECTS)
-	$(CPP) -o $(EXECUTABLE) $(OBJECTS) $(LDFLAGS)
+$(EXECUTABLE): $(OBJECTS) $(ABC_LIB)
+	$(CPP) -o $(EXECUTABLE) $(OBJECTS) $(ABC_LIB) $(LDFLAGS)
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -45,6 +48,10 @@ $(BUILD_DIR)/%.o: $(SOURCES_DIR)/%.c
 
 $(BUILD_DIR)/%.o: $(SOURCES_DIR)/%.cpp
 	$(CPP) -I $(SOURCES_DIR) $(CPPFLAGS) -c $< -o $@
+
+$(ABC_LIB):
+	cd $(ABC_DIR) && make -j9 libabc.a READLINE=0
+	mv $(ABC_DIR)/libabc.a $(ABC_LIB)
 
 clean:
 	rm -r $(BUILD_DIR)
