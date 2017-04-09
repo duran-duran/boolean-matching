@@ -13,7 +13,9 @@ void printUsage()
 {
     std::cout << "Usage: ./matcher <command> <arguments>" << std::endl;
     std::cout << "\t- stuck <in_file.v> <input_name> <value>" << std::endl;
-    std::cout << "\t- inv <in_file.v> <input_name>" << std::endl;
+    std::cout << "\t- inv_in <in_file.v> <input_name>" << std::endl;
+    std::cout << "\t- inv_out <in_file.v> <output_name>" << std::endl;
+    std::cout << "\t- miter <in_file.v> <output_name1> <output_name2>" << std::endl;
     std::cout << "\t- cone <in_file.v> <output_name>" << std::endl;
     std::cout << "\t- copy <in_file.v>" << std::endl;
     std::cout << "\t- sim <in_file.v> <output_name> <num_of_iterations>" << std::endl;
@@ -81,6 +83,42 @@ int main(int argc, char * argv[])
         cir->print();
 
         delete cir;
+
+        return OK;
+    }
+    else if (cmd == "miter" && argc == 6)
+    {
+        char *in_file = argv[2];
+        const std::string po1(argv[3]);
+        const std::string po2(argv[4]);
+        const std::string func(argv[5]);
+
+        log("Constructing miter circuit from cones for outputs %s and %s", po1.c_str(), po2.c_str());
+
+        Circuit *cir = parse_verilog(FileUtils::load_file(in_file));
+        cir->print();
+
+        Circuit *cone1 = cir->getCone(po1);
+        cone1->print();
+
+        Circuit *cone2 = cir->getCone(po2);
+        cone2->print();
+
+        const std::map<std::string, Function> func_map =
+        {
+            {"AND", FUNCTION_AND},
+            {"OR" , FUNCTION_OR },
+            {"XOR", FUNCTION_XOR},
+            //..and so on
+        };
+
+        Circuit *miter = Circuit::getMiter(cone1, cone2, func_map.at(func));
+        miter->print();
+
+        delete cir;
+        delete cone1;
+        delete cone2;
+        delete miter;
 
         return OK;
     }

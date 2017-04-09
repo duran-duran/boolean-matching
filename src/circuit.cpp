@@ -530,6 +530,56 @@ void Circuit::invertOutput(const std::string &po)
     inv_node->input_names = {po};
 }
 
+Circuit *Circuit::getMiter(Circuit *cone1, Circuit *cone2, Function func)
+{
+    Circuit *miter = new Circuit();
+    std::vector<std::string> all_outputs;
+
+    auto addNetsAndNodes = [&all_outputs, miter](Circuit *cone, const std::string &prefix)
+    {
+        for (const auto &net : cone->getNets())
+        {
+            std::string new_name = prefix + net.first;
+            NetType new_type = net.second.type;
+
+            if (new_type == NetType::NET_OUTPUT)
+            {
+                all_outputs.push_back(new_name);
+                new_type = NetType::NET_DEFAULT;
+            }
+            miter->addNet(new_name, new_type);
+        }
+        for (const auto *node : cone->getNodes())
+        {
+            if (node->type == NodeType::NODE_DEFAULT)
+            {
+                Node *newNode = miter->addNode(node->function);
+                newNode->name = node->name;
+                newNode->output_name = prefix + node->output_name;
+                for (const auto &input_name : node->input_names)
+                    newNode->input_names.push_back(prefix + input_name);
+            }
+        }
+    };
+
+    addNetsAndNodes(cone1, "cir1_");
+    addNetsAndNodes(cone2, "cir2_");
+
+    std::string miter_net_name = "miter";
+    for (const auto &output : all_outputs)
+        miter_net_name += "_" + output;
+    miter->addNet(miter_net_name, NetType::NET_OUTPUT);
+
+    Node *miter_node = miter->addNode(func);
+    miter_node->output_name = miter_net_name;
+
+    for (const auto &output : all_outputs)
+        miter_node->input_names.push_back(output);
+
+    miter->construct();
+    return miter;
+}
+
 Circuit::Circuit(const Circuit &cir) :
     name("top")
 {
@@ -540,7 +590,6 @@ Circuit::Circuit(const Circuit &cir) :
         if (node->type == NodeType::NODE_DEFAULT)
         {
             Node *newNode = addNode(node->function);
-            newNode->type = NodeType::NODE_DEFAULT;
             newNode->name = node->name;
             newNode->output_name = node->output_name;
             newNode->input_names = node->input_names;

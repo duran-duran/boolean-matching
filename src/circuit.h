@@ -107,6 +107,8 @@ public:
     void stuckInput(const std::string &pi, bool value);
     void invertInput(const std::string &pi);
     void invertOutput(const std::string &po);
+
+    static Circuit *getMiter(Circuit *cone1, Circuit *cone2, Function func = FUNCTION_XOR);
 private:
     std::string name;
 
