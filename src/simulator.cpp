@@ -1,5 +1,6 @@
 #include "simulator.h"
 #include "utils.h"
+#include "checker.h"
 #include <sstream>
 
 const std::set<Property> Simulator::all_properties =

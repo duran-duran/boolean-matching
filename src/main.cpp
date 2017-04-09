@@ -6,6 +6,7 @@
 #include "matcher.h"
 #include "simulator.h"
 #include "verilog.h"
+#include "checker.h"
 
 void printMatching(const Matching& match);
 
@@ -15,7 +16,7 @@ void printUsage()
     std::cout << "\t- stuck <in_file.v> <input_name> <value>" << std::endl;
     std::cout << "\t- inv_in <in_file.v> <input_name>" << std::endl;
     std::cout << "\t- inv_out <in_file.v> <output_name>" << std::endl;
-    std::cout << "\t- miter <in_file.v> <output_name1> <output_name2>" << std::endl;
+    std::cout << "\t- miter <in_file.v> <output_name1> <output_name2> <function>" << std::endl;
     std::cout << "\t- cone <in_file.v> <output_name>" << std::endl;
     std::cout << "\t- copy <in_file.v>" << std::endl;
     std::cout << "\t- sim <in_file.v> <output_name> <num_of_iterations>" << std::endl;
@@ -114,6 +115,8 @@ int main(int argc, char * argv[])
 
         Circuit *miter = Circuit::getMiter(cone1, cone2, func_map.at(func));
         miter->print();
+
+        checkMiter(miter);
 
         delete cir;
         delete cone1;
