@@ -537,19 +537,32 @@ Circuit *Circuit::getMiter(Circuit *cone1, Circuit *cone2, Function func)
 
     auto addNetsAndNodes = [&all_outputs, miter](Circuit *cone, const std::string &prefix)
     {
+        const auto &miter_inputs =  miter->getInputs();
         for (const auto &net : cone->getNets())
         {
+            std::string net_name = net.first;
             NetType net_type = net.second.type;
-            bool use_prefix = net_type != NetType::NET_INPUT;
 
-            std::string new_name = use_prefix ? prefix + net.first : net.first;
-            NetType new_type = net.second.type;
+            NetType new_type = net_type;
+            std::string new_name = net_name;
 
-            if (new_type == NetType::NET_OUTPUT)
+            switch (net_type)
             {
+            case NetType::NET_INPUT:
+                if (std::find(miter_inputs.begin(), miter_inputs.end(), net.first) != miter_inputs.end())
+                    continue; //avoiding input name_duplication
+                break;
+            case NetType::NET_OUTPUT:
+                new_name = prefix + new_name;
                 all_outputs.push_back(new_name);
-                new_type = NetType::NET_DEFAULT;
+                new_type = NetType::NET_DEFAULT; //changing output net types
+                break;
+            case NetType::NET_DEFAULT:
+            default:
+                new_name = prefix + new_name;
+                break;
             }
+
             miter->addNet(new_name, new_type);
         }
         for (const auto *node : cone->getNodes())
