@@ -539,7 +539,10 @@ Circuit *Circuit::getMiter(Circuit *cone1, Circuit *cone2, Function func)
     {
         for (const auto &net : cone->getNets())
         {
-            std::string new_name = prefix + net.first;
+            NetType net_type = net.second.type;
+            bool use_prefix = net_type != NetType::NET_INPUT;
+
+            std::string new_name = use_prefix ? prefix + net.first : net.first;
             NetType new_type = net.second.type;
 
             if (new_type == NetType::NET_OUTPUT)
@@ -553,11 +556,15 @@ Circuit *Circuit::getMiter(Circuit *cone1, Circuit *cone2, Function func)
         {
             if (node->type == NodeType::NODE_DEFAULT)
             {
-                Node *newNode = miter->addNode(node->function);
-                newNode->name = node->name;
-                newNode->output_name = prefix + node->output_name;
+                Node *new_node = miter->addNode(node->function);
+                new_node->name = node->name;
+                new_node->output_name = prefix + node->output_name;
                 for (const auto &input_name : node->input_names)
-                    newNode->input_names.push_back(prefix + input_name);
+                {
+                    NetType net_type = cone->getNetType(input_name);
+                    bool use_prefix = net_type != NetType::NET_CONSTANT && net_type != NetType::NET_INPUT;
+                    new_node->input_names.push_back(use_prefix ? prefix + input_name : input_name);
+                }
             }
         }
     };

@@ -26,6 +26,7 @@ private:
     static void checkRemoval(std::set<Property> &properties,
                              bool in_value1, bool in_value2,
                              bool out_value1, bool out_value2);
+    void confirmProperties(const std::string &pi, std::set<Property> &properties) const;
 
     static const std::set<Property> all_properties;
 };
