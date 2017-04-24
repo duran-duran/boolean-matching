@@ -175,11 +175,22 @@ int main(int argc, char * argv[])
         cone->print();
 
         Simulator sim(cone);
+
         auto input_properties = sim.simulate(sim_iterations);
+        auto input_symmetries = sim.simulateSym(sim_iterations);
+        auto sv_symmetries = sim.simulateSVSym(sim_iterations);
 
         log("Input properties:");
         for (const auto &it : input_properties)
             log("%s: %s", it.first.c_str(), propSetToStr(it.second).c_str());
+
+        log("Input symmetries:");
+        for (const auto &it : input_symmetries)
+            log("%s, %s: %s", it.first.first.c_str(), it.first.second.c_str(), symSetToStr(it.second).c_str());
+
+        log("SV symmetries:");
+        for (const auto &it : sv_symmetries)
+            log("%s: %s", it.first.c_str(), svSymSetToStr(it.second).c_str());
 
         delete cir;
         delete cone;
