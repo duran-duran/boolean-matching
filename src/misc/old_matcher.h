@@ -8,11 +8,11 @@
 #include "circuit.h"
 #include "support_calculator.h"
 
-using Signature = std::string;
-using IOCluster = std::map<Signature, IOSet>;
+using POSignature = std::string;
+using IOCluster = std::map<POSignature, IOSet>;
 
-Signature updateSignature(const Signature &old_sign, char cluster_id, size_t n);
-std::string getPrefix(Signature sign);
+POSignature updateSignature(const POSignature &old_sign, char cluster_id, size_t n);
+std::string getPrefix(POSignature sign);
 
 struct CircuitData
 {
@@ -26,10 +26,10 @@ struct CircuitData
 
     IOCluster matched_output_clusters, unmatched_output_clusters, input_clusters;
 
-    std::map<std::string, Signature> input_signatures, output_signatures;
+    std::map<std::string, POSignature> input_signatures, output_signatures;
 
-    std::set<Signature> getUnmatchedSignatures();
-    std::set<Signature> getMatchedSignatures();
+    std::set<POSignature> getUnmatchedSignatures();
+    std::set<POSignature> getMatchedSignatures();
 
     std::pair<IOSet, IOSet> match(const std::string &po);
     IOSet stickUnmatchedInputs(const std::string &po, size_t n);
@@ -62,8 +62,8 @@ private:
 
     Matching cur_match;
 
-    std::set<Signature> getCommonUnmatchedSignatures();
-    std::pair<Signature, Signature> getMinDiffSignatures();
+    std::set<POSignature> getCommonUnmatchedSignatures();
+    std::pair<POSignature, POSignature> getMinDiffSignatures();
     void match(const std::string &po1, const std::string &po2);
 };
 

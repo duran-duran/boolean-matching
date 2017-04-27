@@ -5,10 +5,10 @@
 #include "support_calculator.h"
 #include "simulator.h"
 
-struct Signature
+struct POSignature
 {
     IOSet output_support;
-    PropertyMap properties;
+    UnatenessMap properties;
 };
 
 class SignData
@@ -16,8 +16,8 @@ class SignData
 public:
     SignData(Circuit *cir);
 
-    Signature getSignature(const std::string &po) const;
+    POSignature getSignature(const std::string &po) const;
 private:
-    std::unordered_map<std::string, Signature> signatures;
+    std::unordered_map<std::string, POSignature> signatures;
 
 };

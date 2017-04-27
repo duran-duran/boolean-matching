@@ -4,10 +4,10 @@
 #include <sstream>
 #include <algorithm>
 
-const PropertySet Simulator::all_properties =
+const UnatenessSet Simulator::all_properties =
 {
-    Property::PosUnate,
-    Property::NegUnate
+    Unateness::PosUnate,
+    Unateness::NegUnate
 };
 
 const SymmetrySet Simulator::all_symmetries =
@@ -20,9 +20,9 @@ Simulator::Simulator(Circuit *cir) :
     cir(cir)
 {}
 
-PropertyMap Simulator::simulate(std::size_t max_iterations)
+UnatenessMap Simulator::simulate(std::size_t max_iterations)
 {
-    PropertyMap input_properties;
+    UnatenessMap input_properties;
 
     const std::string po = cir->getOutputs().front(); //only one output in cone
     for (const auto &pi : cir->getInputs())
@@ -41,6 +41,8 @@ PropertyMap Simulator::simulate(std::size_t max_iterations)
                 break;
         }
         confirmProperties(pi, input_properties.at(pi));
+        if (input_properties.at(pi).empty())
+            input_properties.at(pi).insert(Unateness::Binate);
     }
 
     return std::move(input_properties);
@@ -134,7 +136,7 @@ std::pair<InVector, InVector> Simulator::generateDisjointPair(const std::vector<
     return std::make_pair(vector1, vector2);
 }
 
-void Simulator::checkRemoval(PropertySet &properties, bool in_value1, bool in_value2, bool out_value1, bool out_value2)
+void Simulator::checkRemoval(UnatenessSet &properties, bool in_value1, bool in_value2, bool out_value1, bool out_value2)
 {
     if (out_value1 == out_value2 || in_value1 == in_value2) //checks only on disjoint input & output values
         return;
@@ -146,11 +148,13 @@ void Simulator::checkRemoval(PropertySet &properties, bool in_value1, bool in_va
 
         switch (prop)
         {
-        case Property::PosUnate:
+        case Unateness::PosUnate:
             erase = out_value1 && !in_value1;
             break;
-        case Property::NegUnate:
+        case Unateness::NegUnate:
             erase = out_value1 && in_value1;
+            break;
+        default:
             break;
         }
 
@@ -180,6 +184,8 @@ void Simulator::checkRemoval(SymmetrySet &symmetries, bool in_value11, bool in_v
         case Symmetry::ESymmetry:
             erase = in_value11 && in_value12;
             break;
+        default:
+            break;
         }
 
         if (erase)
@@ -206,17 +212,17 @@ void Simulator::checkRemoval(SVSymmetrySet &sv_symmetries, const std::string &pi
     }
 }
 
-void Simulator::confirmProperties(const std::string &pi, PropertySet &properties) const
+void Simulator::confirmProperties(const std::string &pi, UnatenessSet &properties) const
 {
     const auto &po = cir->getOutputs().front();
     auto properties_copy = properties;
 
-    for (Property property : properties_copy)
+    for (Unateness property : properties_copy)
     {
         bool unsat = false;
         switch (property)
         {
-        case Property::PosUnate:
+        case Unateness::PosUnate:
         {
             Circuit* neg_cofactor = new Circuit(*cir);
             neg_cofactor->stuckInput(pi, false);
@@ -237,7 +243,7 @@ void Simulator::confirmProperties(const std::string &pi, PropertySet &properties
 
             break;
         }
-        case Property::NegUnate:
+        case Unateness::NegUnate:
         {
             Circuit* inv_neg_cofactor = new Circuit(*cir);
             inv_neg_cofactor->stuckInput(pi, false);
@@ -377,20 +383,24 @@ void Simulator::confirmSymmetries(const std::string &pi, SVSymmetrySet &sv_symme
     }
 }
 
-std::string propToStr(Property prop)
+std::string propToStr(Unateness prop)
 {
     switch (prop)
     {
-    case Property::PosUnate:
+    case Unateness::Binate:
+        return "Binate";
+    case Unateness::PosUnate:
         return "PosUnate";
-    case Property::NegUnate:
+    case Unateness::NegUnate:
         return "NegUnate";
+    case Unateness::Unknown:
+        return "Unknown";
     default:
         return "";
     }
 }
 
-std::string propSetToStr(const PropertySet &properties)
+std::string propSetToStr(const UnatenessSet &properties)
 {
     std::stringstream ss;
     for (auto prop : properties)
@@ -413,10 +423,14 @@ std::string symToStr(Symmetry sym)
 {
     switch (sym)
     {
+    case Symmetry::None:
+        return "None";
     case Symmetry::NESymmetry:
         return "NESymmetry";
     case Symmetry::ESymmetry:
         return "ESymmetry";
+    case Symmetry::Unknown:
+        return "Unknown";
     default:
         return "";
     }

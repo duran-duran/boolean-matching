@@ -15,14 +15,14 @@ ValidationResult Validator::validateMatching(Circuit *cir1, Circuit *cir2, const
     return std::move(result);
 }
 
-CheckResult Validator::checkMatch(const Signature &sign1, const Signature &sign2)
+CheckResult Validator::checkMatch(const POSignature &sign1, const POSignature &sign2)
 {
     if (sign1.output_support.size() != sign2.output_support.size())
         return CheckResult{false, {}};
 
     CheckResult result;
 
-    auto splitByUnateness = [](const PropertyMap &property_map)
+    auto splitByUnateness = [](const UnatenessMap &property_map)
     {
         IOSet pos_unate_cluster, neg_unate_cluster, binate_cluster, undefined_cluster;
         for (const auto& it : property_map)
@@ -30,18 +30,18 @@ CheckResult Validator::checkMatch(const Signature &sign1, const Signature &sign2
             const auto &pi = it.first;
             const auto &properties = it.second;
 
-            if (properties.find(Property::PosUnate) != properties.end() &&
-                properties.find(Property::NegUnate) == properties.end())
+            if (properties.find(Unateness::PosUnate) != properties.end() &&
+                properties.find(Unateness::NegUnate) == properties.end())
             {
                 pos_unate_cluster.insert(pi);
             }
-            else if (properties.find(Property::PosUnate) == properties.end() &&
-                     properties.find(Property::NegUnate) != properties.end())
+            else if (properties.find(Unateness::PosUnate) == properties.end() &&
+                     properties.find(Unateness::NegUnate) != properties.end())
             {
                 neg_unate_cluster.insert(pi);
             }
-            else if (properties.find(Property::PosUnate) == properties.end() &&
-                     properties.find(Property::NegUnate) == properties.end())
+            else if (properties.find(Unateness::PosUnate) == properties.end() &&
+                     properties.find(Unateness::NegUnate) == properties.end())
             {
                 binate_cluster.insert(pi);
             }

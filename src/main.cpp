@@ -9,7 +9,7 @@
 #include "checker.h"
 
 //void printMatching(const Matching& match);
-void printPartition(const IOPartition &partition);
+void printPartition(const POPartition &partition);
 
 void printUsage()
 {
@@ -207,7 +207,8 @@ int main(int argc, char * argv[])
                 *cir2 = parse_verilog(FileUtils::load_file(in_file2));
 
         Matcher matcher(cir1, cir2);
-        matcher.splitBySupportSize();
+        matcher.splitBySupport()
+               .splitByUnateness();
 
         auto partitions = matcher.getPOPartitions();
         printPartition(partitions.first);
@@ -295,7 +296,19 @@ std::string IOSetToStr(const IOSet &io_set)
     return result.substr(0, result.size() - 1);
 }
 
-void printPartition(const IOPartition &partition)
+std::string PISignMaskToStr(const PISignMask &input_signatures)
+{
+    std::string result;
+    for (const auto &sign : input_signatures)
+    {
+        result += "{size: " + std::to_string(sign.first) + ", ";
+        result += "unateness: " + propToStr(sign.second.unat) + ", ";
+        result += "symmetry: " + symToStr(sign.second.sym) + "}";
+    }
+    return result;
+}
+
+void printPartition(const POPartition &partition)
 {
     std::size_t i = 0;
     for (const auto &cluster : partition)
@@ -303,6 +316,7 @@ void printPartition(const IOPartition &partition)
         log("Cluster %u:", i);
         log("Outputs: %s", IOSetToStr(cluster.second).c_str());
         log("Support size: %u", cluster.first.support_size);
+        log("Input partition: %s", PISignMaskToStr(cluster.first.input_signatures).c_str());
         log("---------");
         ++i;
     }

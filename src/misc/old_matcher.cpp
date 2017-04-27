@@ -24,7 +24,7 @@ Matching Matcher::getResult()
              msigns2 = data2.getMatchedSignatures();
         while(!unmatched_signatures.empty())
         {
-            Signature min_common_sign = *(std::min_element(unmatched_signatures.begin(), unmatched_signatures.end()));
+            POSignature min_common_sign = *(std::min_element(unmatched_signatures.begin(), unmatched_signatures.end()));
             auto po_cluster1 = data1.unmatched_output_clusters.at(min_common_sign),
                  po_cluster2 = data2.unmatched_output_clusters.at(min_common_sign);
 
@@ -56,23 +56,23 @@ Matching Matcher::getResult()
     return cur_match;
 }
 
-std::set<Signature> Matcher::getCommonUnmatchedSignatures()
+std::set<POSignature> Matcher::getCommonUnmatchedSignatures()
 {
     auto unmatched_signs1 = data1.getUnmatchedSignatures(),
          unmatched_signs2 = data2.getUnmatchedSignatures();
-    std::set<Signature> common_unmatched_signs;
+    std::set<POSignature> common_unmatched_signs;
     std::set_intersection(unmatched_signs1.begin(), unmatched_signs1.end(),
                           unmatched_signs2.begin(), unmatched_signs2.end(),
                           std::inserter(common_unmatched_signs, common_unmatched_signs.begin()));
     return common_unmatched_signs;
 }
 
-std::pair<Signature, Signature> Matcher::getMinDiffSignatures()
+std::pair<POSignature, POSignature> Matcher::getMinDiffSignatures()
 {
     auto unmatched_signs1 = data1.getUnmatchedSignatures(),
          unmatched_signs2 = data2.getUnmatchedSignatures();
 
-    Signature sign1 = "",
+    POSignature sign1 = "",
               sign2 = "";
     size_t min_diff = std::numeric_limits<size_t>::max();
 
@@ -124,17 +124,17 @@ CircuitData::CircuitData(Circuit *cir) :
     calculateInitClusters();
 }
 
-std::set<Signature> CircuitData::getUnmatchedSignatures()
+std::set<POSignature> CircuitData::getUnmatchedSignatures()
 {
-    std::set<Signature> result;
+    std::set<POSignature> result;
     for (const auto &cluster : unmatched_output_clusters)
         result.insert(cluster.first);
     return result;
 }
 
-std::set<Signature> CircuitData::getMatchedSignatures()
+std::set<POSignature> CircuitData::getMatchedSignatures()
 {
-    std::set<Signature> result;
+    std::set<POSignature> result;
     for (const auto &cluster : matched_output_clusters)
         result.insert(cluster.first);
     return result;
@@ -157,7 +157,7 @@ std::pair<IOSet, IOSet> CircuitData::match(const std::string &po)
     constexpr char unmatched_id = '0';
     const char new_cluster_id = unmatched_id + getMatchedSignatures().size() + 1;
 
-    Signature old_po_sign = output_signatures.at(po),
+    POSignature old_po_sign = output_signatures.at(po),
               new_po_sign = updateSignature(old_po_sign, new_cluster_id, inputs.size());
     output_signatures.at(po) = new_po_sign;
 
@@ -172,7 +172,7 @@ std::pair<IOSet, IOSet> CircuitData::match(const std::string &po)
     for (const auto &uo : unmatched_outputs)
     {
         auto uo_support = output_support.at(uo);
-        Signature old_sign = output_signatures.at(uo),
+        POSignature old_sign = output_signatures.at(uo),
                   new_sign = old_sign;
         for (const auto &pi : inputs)
         {
@@ -218,7 +218,7 @@ IOSet CircuitData::stickUnmatchedInputs(const std::string &po, size_t n)
         for (const auto &po : input_support.at(pi))
         {
             output_support.at(po).erase(pi);
-            Signature old_sign = output_signatures.at(po),
+            POSignature old_sign = output_signatures.at(po),
                       new_sign = old_sign.substr(0, old_sign.length() - 1);
             output_signatures.at(po) = new_sign;
 
@@ -243,7 +243,7 @@ void CircuitData::calculateInitClusters()
 {
     for (const auto &sup : output_support)
     {
-        Signature sign(sup.second.size(), '0');
+        POSignature sign(sup.second.size(), '0');
         output_signatures[sup.first] = sign;
         if (unmatched_output_clusters.find(sign) == unmatched_output_clusters.end())
             unmatched_output_clusters[sign] = IOSet();
@@ -262,17 +262,17 @@ IOSet CircuitData::getUnmatchedInputs(const std::string &po)
     return result;
 }
 
-Signature updateSignature(const Signature &old_sign, char cluster_id, size_t n)
+POSignature updateSignature(const POSignature &old_sign, char cluster_id, size_t n)
 {
     constexpr char unmatched_id = '0';
-    Signature new_sign = old_sign;
+    POSignature new_sign = old_sign;
     size_t start = new_sign.find(unmatched_id);
     for (size_t i = start; i < start + n; ++i)
         new_sign[i] = cluster_id;
     return new_sign;
 }
 
-std::string getPrefix(Signature sign)
+std::string getPrefix(POSignature sign)
 {
     constexpr char unmatched_id = '0';
     return sign.substr(0, sign.find(unmatched_id));

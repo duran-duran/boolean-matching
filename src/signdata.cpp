@@ -5,7 +5,7 @@ SignData::SignData(Circuit *cir)
     IOSupport output_support = IOSupportCalculator(cir).getOutputSupport();
     for (const auto &po : cir->getOutputs())
     {
-        Signature sign;
+        POSignature sign;
         sign.output_support = output_support.at(po);
 
         constexpr std::size_t max_iterations = 1000;
@@ -15,7 +15,7 @@ SignData::SignData(Circuit *cir)
     }
 }
 
-Signature SignData::getSignature(const std::string &po) const
+POSignature SignData::getSignature(const std::string &po) const
 {
     return signatures.at(po);
 }
