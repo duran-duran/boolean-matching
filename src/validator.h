@@ -28,5 +28,6 @@ public:
                                              const Matching &output_matching);
 private:
     static CheckResult checkMatch(const Signature &sign1, const Signature &sign2);
-    static void partitionType1(Circuit *cir, std::vector<IOSet> &partition);
+    static std::vector<IOSet> partitionType1(Circuit *cir, const std::vector<IOSet> &partition);
+    static std::vector<IOSet> partitionType2(Circuit *cir, const std::vector<IOSet> &partition);
 };

@@ -1,70 +1,33 @@
-#ifndef __MATCHER_H__
-#define __MATCHER_H__
-
-#include <set>
-#include <map>
-#include <string>
+#pragma once
 
 #include "circuit.h"
-#include "support_calculator.h"
 
-using Signature = std::string;
-using IOCluster = std::map<Signature, IOSet>;
+using IOSet = std::set<std::string>;
 
-Signature updateSignature(const Signature &old_sign, char cluster_id, size_t n);
-std::string getPrefix(Signature sign);
-
-struct CircuitData
+struct Signature
 {
-    CircuitData();
-    CircuitData(Circuit* cir);
+    Signature();
 
-    IOSet matched_inputs, unmatched_inputs;
-    IOSet matched_outputs, unmatched_outputs;
+    std::size_t support_size;
+    std::vector<IOSet> input_clusters;
 
-    IOSupport output_support, input_support;
-
-    IOCluster matched_output_clusters, unmatched_output_clusters, input_clusters;
-
-    std::map<std::string, Signature> input_signatures, output_signatures;
-
-    std::set<Signature> getUnmatchedSignatures();
-    std::set<Signature> getMatchedSignatures();
-
-    std::pair<IOSet, IOSet> match(const std::string &po);
-    IOSet stickUnmatchedInputs(const std::string &po, size_t n);
-private:
-    void calculateInitClusters();
-    IOSet getUnmatchedInputs(const std::string &po);
+    bool operator < (const Signature &rhs) const;
 };
 
-using IOMatching = std::vector<std::pair<IOSet, IOSet>>;
-
-struct Matching
-{
-    IOMatching input_matching, output_matching;
-    IOSet stuck_inputs2;
-    size_t score;
-    //actions
-
-    Matching() : score(0) {}
-};
+using IOPartition = std::map<Signature, IOSet>;
+using Cones = std::map<std::string, Circuit *>;
 
 class Matcher
 {
 public:
     Matcher(Circuit *cir1, Circuit *cir2);
+    Matcher &splitBySupportSize();
 
-    Matching getResult();
+    std::pair<IOPartition, IOPartition> getPOPartitions() const;
 private:
     Circuit *cir1, *cir2;
-    CircuitData data1, data2;
+    IOPartition cir1_partition, cir2_partition;
+    Cones cones1, cones2;
 
-    Matching cur_match;
-
-    std::set<Signature> getCommonUnmatchedSignatures();
-    std::pair<Signature, Signature> getMinDiffSignatures();
-    void match(const std::string &po1, const std::string &po2);
+    void splitBySupportSize(IOPartition &partition, Circuit *cir, const Cones &cones);
 };
-
-#endif // __MATCHING_DATA_H__

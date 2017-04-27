@@ -8,7 +8,8 @@
 #include "verilog.h"
 #include "checker.h"
 
-void printMatching(const Matching& match);
+//void printMatching(const Matching& match);
+void printPartition(const IOPartition &partition);
 
 void printUsage()
 {
@@ -197,6 +198,22 @@ int main(int argc, char * argv[])
 
         return OK;
     }
+    else if (cmd == "split" && argc == 4)
+    {
+        const char *in_file1 = argv[2],
+                   *in_file2 = argv[3];
+
+        Circuit *cir1 = parse_verilog(FileUtils::load_file(in_file1)),
+                *cir2 = parse_verilog(FileUtils::load_file(in_file2));
+
+        Matcher matcher(cir1, cir2);
+        matcher.splitBySupportSize();
+
+        auto partitions = matcher.getPOPartitions();
+        printPartition(partitions.first);
+        printPartition(partitions.second);
+        return OK;
+    }
     else
     {
         makeAssertion("Wrong command or number of arguments");
@@ -226,49 +243,68 @@ int main(int argc, char * argv[])
     return OK;
 }
 
-void printMatching(const Matching& match)
+//void printMatching(const Matching& match)
+//{
+//    std::cout << "MATCHING" << std::endl;
+
+//    std::cout << "SCORE=" << match.score << std::endl;
+
+//    std::cout << "STUCK_INPUTS_2=[ ";
+//    for (const auto &po : match.stuck_inputs2)
+//        std::cout << po << " ";
+//    std::cout << "]" << std::endl;
+
+//    for (const auto &i_matching : match.input_matching)
+//    {
+//        std::cout << "INPUT_GROUP=[ [ ";
+
+//        for (const auto &pi : i_matching.first)
+//            std::cout << pi << " ";
+
+//        std::cout << "] [ ";
+
+//        for (const auto &pi : i_matching.second)
+//            std::cout << pi << " ";
+
+//        std::cout << "] ]" << std::endl;
+//    }
+
+//    for (const auto &o_matching : match.output_matching)
+//    {
+//        std::cout << "OUTPUT_GROUP=[ [ ";
+
+//        for (const auto &po : o_matching.first)
+//            std::cout << po << " ";
+
+//        std::cout << "] [ ";
+
+//        for (const auto &po : o_matching.second)
+//            std::cout << po << " ";
+
+//        std::cout << "] ]" << std::endl;
+//    }
+
+//    std::cout << "END" << std::endl;
+//}
+
+std::string IOSetToStr(const IOSet &io_set)
 {
-    std::cout << "MATCHING" << std::endl;
-
-    std::cout << "SCORE=" << match.score << std::endl;
-
-    std::cout << "STUCK_INPUTS_2=[ ";
-    for (const auto &po : match.stuck_inputs2)
-        std::cout << po << " ";
-    std::cout << "]" << std::endl;
-
-    for (const auto &i_matching : match.input_matching)
-    {
-        std::cout << "INPUT_GROUP=[ [ ";
-
-        for (const auto &pi : i_matching.first)
-            std::cout << pi << " ";
-
-        std::cout << "] [ ";
-
-        for (const auto &pi : i_matching.second)
-            std::cout << pi << " ";
-
-        std::cout << "] ]" << std::endl;
-    }
-
-    for (const auto &o_matching : match.output_matching)
-    {
-        std::cout << "OUTPUT_GROUP=[ [ ";
-
-        for (const auto &po : o_matching.first)
-            std::cout << po << " ";
-
-        std::cout << "] [ ";
-
-        for (const auto &po : o_matching.second)
-            std::cout << po << " ";
-
-        std::cout << "] ]" << std::endl;
-    }
-
-    std::cout << "END" << std::endl;
+    std::string result;
+    for (const auto& io : io_set)
+        result += io + " ";
+    return result.substr(0, result.size() - 1);
 }
 
-
+void printPartition(const IOPartition &partition)
+{
+    std::size_t i = 0;
+    for (const auto &cluster : partition)
+    {
+        log("Cluster %u:", i);
+        log("Outputs: %s", IOSetToStr(cluster.second).c_str());
+        log("Support size: %u", cluster.first.support_size);
+        log("---------");
+        ++i;
+    }
+}
 
