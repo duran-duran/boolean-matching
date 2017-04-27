@@ -80,11 +80,11 @@ bool Matcher::splitBySimType1()
             continue;
 
         POSignature sign = cluster.first;
-        new_partition1.erase(sign);
-        new_partition2.erase(sign);
 
         for (std::size_t i = 0; i < sign.input_signatures.size(); ++i)
         {
+            new_partition1.erase(sign);
+            new_partition2.erase(sign);
             std::vector<bool> boolVec;
             for (std::size_t j = 0; j < sign.input_signatures.size(); ++j)
             {
@@ -127,11 +127,11 @@ bool Matcher::splitBySimType2()
             continue;
 
         POSignature sign = cluster.first;
-        new_partition1.erase(sign);
-        new_partition2.erase(sign);
 
         for (std::size_t i = 0; i < sign.input_signatures.size(); ++i)
         {
+            new_partition1.erase(sign);
+            new_partition2.erase(sign);
             std::vector<bool> boolVec;
             for (std::size_t j = 0; j < sign.input_signatures.size(); ++j)
             {
