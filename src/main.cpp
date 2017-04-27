@@ -213,7 +213,8 @@ int main(int argc, char * argv[])
         matcher.splitBySupport()
                .splitByUnateness()
                .splitBySymmetry()
-               .splitBySimType1(1000);
+               .splitBySimType1(1000)
+               .splitBySimType2(1000);
 
         auto partitions = matcher.getPOPartitions();
         printPartition(partitions.first);
@@ -311,10 +312,17 @@ std::string PISignMaskToStr(const PISignMask &input_signatures)
         result += "symmetry: " + symToStr(sign.second.sym);
         if (!sign.second.simType1.empty())
         {
-            result += ", type1 sim results : [";
+            result += ", type1 sim results: [";
             for (bool val : sign.second.simType1)
                 result += (val ? "1" : "0");
             result += "]";
+        }
+        if (!sign.second.simType2.empty())
+        {
+            result += ", type2 sim results: [";
+            for (int val : sign.second.simType2)
+                result += std::to_string(val) + ",";
+            result = result.substr(0, result.size() - 1) + "]";
         }
         result += "}";
     }

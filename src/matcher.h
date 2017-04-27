@@ -12,6 +12,7 @@ struct PISignature
     Unateness unat;
     Symmetry sym;
     std::vector<bool> simType1;
+    std::vector<int> simType2;
 };
 
 using PISignMask = std::vector<std::pair<std::size_t, PISignature>>;
@@ -42,6 +43,7 @@ public:
     Matcher &splitByUnateness();
     Matcher &splitBySymmetry();
     Matcher &splitBySimType1(std::size_t max_it);
+    Matcher &splitBySimType2(std::size_t max_it);
 
     std::pair<POPartition, POPartition> getPOPartitions() const;
 private:
@@ -56,4 +58,7 @@ private:
 
     bool splitBySimType1();
     bool splitBySimType1(const std::string &po, const Cones &cones, PIPartition &pi_partition, const std::vector<bool> &base_vec, std::size_t pi_cluster_ind);
+
+    bool splitBySimType2();
+    bool splitBySimType2(const std::string &po, const Cones &cones, PIPartition &pi_partition, const std::vector<bool> &base_vec, std::size_t pi_cluster_ind);
 };

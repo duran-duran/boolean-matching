@@ -57,6 +57,16 @@ Matcher &Matcher::splitBySimType1(std::size_t max_it)
     return *this;
 }
 
+Matcher &Matcher::splitBySimType2(std::size_t max_it)
+{
+    for (std::size_t it = 0; it < max_it; ++it)
+    {
+        if (splitBySimType2())
+            it = 0;
+    }
+    return *this;
+}
+
 bool Matcher::splitBySimType1()
 {
     POPartition new_partition1 = cir1_po_partition,
@@ -92,6 +102,53 @@ bool Matcher::splitBySimType1()
             for (const auto &po : cir2_po_partition.at(sign))
             {
                 auto result = splitBySimType1(po, cones2, cir2_pi_partitions.at(po), boolVec, i);
+                new_partition2[POSignature(cir2_pi_partitions.at(po))].insert(po);
+                split = split || result;
+            }
+            if (split)
+                break;
+        }
+    }
+    cir1_po_partition = new_partition1;
+    cir2_po_partition = new_partition2;
+    return split;
+}
+
+bool Matcher::splitBySimType2()
+{
+    POPartition new_partition1 = cir1_po_partition,
+                new_partition2 = cir2_po_partition;
+
+    bool split = false;
+
+    for (const auto &cluster : cir1_po_partition)
+    {
+        if (split || (cir2_po_partition.find(cluster.first) == cir2_po_partition.end()))
+            continue;
+
+        POSignature sign = cluster.first;
+        new_partition1.erase(sign);
+        new_partition2.erase(sign);
+
+        for (std::size_t i = 0; i < sign.input_signatures.size(); ++i)
+        {
+            std::vector<bool> boolVec;
+            for (std::size_t j = 0; j < sign.input_signatures.size(); ++j)
+            {
+                bool value = (rand() % 2) == 0;
+                for (std::size_t k = 0; k < sign.input_signatures[j].first; ++k)
+                    boolVec.push_back(value);
+            }
+
+            for (const auto &po : cir1_po_partition.at(sign))
+            {
+                auto result = splitBySimType2(po, cones1, cir1_pi_partitions.at(po), boolVec, i);
+                new_partition1[POSignature(cir1_pi_partitions.at(po))].insert(po);
+                split = split || result;
+            }
+            for (const auto &po : cir2_po_partition.at(sign))
+            {
+                auto result = splitBySimType2(po, cones2, cir2_pi_partitions.at(po), boolVec, i);
                 new_partition2[POSignature(cir2_pi_partitions.at(po))].insert(po);
                 split = split || result;
             }
@@ -280,6 +337,70 @@ bool Matcher::splitBySimType1(const std::string &po, const Cones &cones, PIParti
     return split;
 }
 
+bool Matcher::splitBySimType2(const std::string &po, const Cones &cones, PIPartition &pi_partition, const std::vector<bool> &base_vec, std::size_t pi_cluster_ind)
+{
+    auto partition_copy = pi_partition;
+    pi_partition.clear();
+
+    InVector in_vec;
+    std::size_t j = 0;
+    for (std::size_t i = 0; i < partition_copy.size(); ++i)
+    {
+        for (const auto &pi : partition_copy[i].second)
+        {
+            in_vec.insert({pi, base_vec[j]});
+            ++j;
+        }
+    }
+
+    bool split = false;
+    for (std::size_t i = 0; i < partition_copy.size(); ++i)
+    {
+        if (i != pi_cluster_ind)
+        {
+            pi_partition.push_back(partition_copy[i]);
+            continue;
+        }
+
+        std::map<int, IOSet> val_sets;
+        for (const auto &pi1 : partition_copy[i].second)
+        {
+            InVector in_vec_flip = in_vec;
+            in_vec_flip.at(pi1) = !in_vec_flip.at(pi1);
+            int output_weight = 0;
+            for (const auto &pi2 : partition_copy[i].second)
+            {
+                if (pi1 == pi2)
+                    continue;
+
+                InVector new_in_vec = in_vec_flip;
+                new_in_vec.at(pi2) = !new_in_vec.at(pi2);
+                if (cones.at(po)->evalOutput(po, new_in_vec))
+                    ++output_weight;
+            }
+            val_sets[output_weight].insert(pi1);
+        }
+
+        if (val_sets.size() > 1)
+        {
+            split = true;
+
+            for (const auto& set : val_sets)
+            {
+                PISignature new_sign = partition_copy[i].first;
+                new_sign.simType2.push_back(set.first);
+                pi_partition.push_back({new_sign, set.second});
+            }
+        }
+        else
+        {
+            pi_partition.push_back(partition_copy[i]);
+        }
+    }
+
+    return split;
+}
+
 std::pair<POPartition, POPartition> Matcher::getPOPartitions() const
 {
     return std::make_pair(cir1_po_partition, cir2_po_partition);
@@ -331,6 +452,15 @@ bool POSignature::operator <(const POSignature &rhs) const
         {
             if (pi_sign1.simType1[j] != pi_sign2.simType1[j])
                 return !pi_sign1.simType1[j] && pi_sign2.simType1[j]; //ordering
+        }
+
+        if (pi_sign1.simType2.size() != pi_sign2.simType2.size())
+            return pi_sign1.simType2.size() < pi_sign2.simType2.size();
+
+        for (std::size_t j = 0; j < pi_sign1.simType2.size(); ++j)
+        {
+            if (pi_sign1.simType2[j] != pi_sign2.simType2[j])
+                return pi_sign1.simType2[j] < pi_sign2.simType2[j]; //ordering
         }
     }
 
