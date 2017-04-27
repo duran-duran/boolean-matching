@@ -15,13 +15,17 @@ enum class Symmetry
     None,
     NESymmetry,
     ESymmetry,
+    BothNEandE,
     Unknown
 };
+
+using IOSet = std::set<std::string>;
 
 using UnatenessSet = std::set<Unateness>;
 using UnatenessMap = std::map<std::string, UnatenessSet>;
 using SymmetrySet = std::set<Symmetry>;
 using SymmetryMap = std::map<std::pair<std::string, std::string>, SymmetrySet>;
+using SymmetryPartition = std::vector<std::pair<Symmetry, IOSet>>;
 
 using SVSymmetrySet = std::set<std::pair<std::string, bool>>;
 using SVSymmetryMap = std::map<std::string, SVSymmetrySet>;
@@ -40,7 +44,7 @@ public:
     Simulator(Circuit *cir);
 
     UnatenessMap simulate(std::size_t max_iterations);
-    SymmetryMap simulateSym(std::size_t max_iterations);
+    SymmetryPartition simulateSym(std::size_t max_iterations);
     SVSymmetryMap simulateSVSym(std::size_t max_iterations);
 private:
     Circuit *cir;

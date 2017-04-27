@@ -10,6 +10,7 @@
 
 //void printMatching(const Matching& match);
 void printPartition(const POPartition &partition);
+void printSymPartition(const SymmetryPartition &partition);
 
 void printUsage()
 {
@@ -178,7 +179,8 @@ int main(int argc, char * argv[])
         Simulator sim(cone);
 
         auto input_properties = sim.simulate(sim_iterations);
-        auto input_symmetries = sim.simulateSym(sim_iterations);
+//        auto input_symmetries = sim.simulateSym(sim_iterations);
+        auto sym_partition = sim.simulateSym(sim_iterations);
         auto sv_symmetries = sim.simulateSVSym(sim_iterations);
 
         log("Input properties:");
@@ -186,8 +188,9 @@ int main(int argc, char * argv[])
             log("%s: %s", it.first.c_str(), propSetToStr(it.second).c_str());
 
         log("Input symmetries:");
-        for (const auto &it : input_symmetries)
-            log("%s, %s: %s", it.first.first.c_str(), it.first.second.c_str(), symSetToStr(it.second).c_str());
+        printSymPartition(sym_partition);
+//        for (const auto &it : input_symmetries)
+//            log("%s, %s: %s", it.first.first.c_str(), it.first.second.c_str(), symSetToStr(it.second).c_str());
 
         log("SV symmetries:");
         for (const auto &it : sv_symmetries)
@@ -208,7 +211,9 @@ int main(int argc, char * argv[])
 
         Matcher matcher(cir1, cir2);
         matcher.splitBySupport()
-               .splitByUnateness();
+               .splitByUnateness()
+               .splitBySymmetry()
+               .splitBySimType1(1000);
 
         auto partitions = matcher.getPOPartitions();
         printPartition(partitions.first);
@@ -303,9 +308,23 @@ std::string PISignMaskToStr(const PISignMask &input_signatures)
     {
         result += "{size: " + std::to_string(sign.first) + ", ";
         result += "unateness: " + propToStr(sign.second.unat) + ", ";
-        result += "symmetry: " + symToStr(sign.second.sym) + "}";
+        result += "symmetry: " + symToStr(sign.second.sym);
+        if (!sign.second.simType1.empty())
+        {
+            result += ", type1 sim results : [";
+            for (bool val : sign.second.simType1)
+                result += (val ? "1" : "0");
+            result += "]";
+        }
+        result += "}";
     }
     return result;
+}
+
+void printSymPartition(const SymmetryPartition &partition)
+{
+    for (const auto &cluster : partition)
+        log("Symmetry: %s, inputs: %s", symToStr(cluster.first).c_str(), IOSetToStr(cluster.second).c_str());
 }
 
 void printPartition(const POPartition &partition)

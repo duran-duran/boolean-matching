@@ -43,47 +43,75 @@ UnatenessMap Simulator::simulate(std::size_t max_iterations)
         confirmProperties(pi, input_properties.at(pi));
         if (input_properties.at(pi).empty())
             input_properties.at(pi).insert(Unateness::Binate);
+        if (input_properties.at(pi).size() > 1)
+            log("WARNING!!!!");
     }
 
     return std::move(input_properties);
 }
 
-SymmetryMap Simulator::simulateSym(std::size_t max_iterations)
+SymmetryPartition Simulator::simulateSym(std::size_t max_iterations)
 {
     if (cir->getInputs().size() < 2)
-        return {};
+        return { {Symmetry::None, IOSet(cir->getInputs().begin(), cir->getInputs().end())} };
 
-    SymmetryMap input_symmetries;
+    SymmetryPartition sym_partition;
 
     const std::string po = cir->getOutputs().front(); //only one output in cone
 
-    for (std::size_t i = 0; i < cir->getInputs().size() - 1; ++i)
+    IOSet unviewed_inputs(cir->getInputs().begin(), cir->getInputs().end());
+    IOSet non_sym_inputs;
+
+    for (std::size_t i = 0; i < cir->getInputs().size()/* - 1*/; ++i)
     {
         const auto& pi1 = cir->getInputs()[i];
+        if (unviewed_inputs.find(pi1) == unviewed_inputs.end())
+            continue;
+
+        Symmetry sym = Symmetry::None;
+        IOSet sym_group;
+
         for (std::size_t j = i + 1; j < cir->getInputs().size(); ++j)
         {
             const auto &pi2 = cir->getInputs()[j];
-//            if (pi1 == pi2)
-//                continue;
-
-            input_symmetries.insert({std::make_pair(pi1, pi2), all_symmetries});
+            if (unviewed_inputs.find(pi2) == unviewed_inputs.end())
+                continue;
+            SymmetrySet sym_set = {Symmetry::NESymmetry/*, Symmetry::ESymmetry*/};
             for (std::size_t it = 0; it < max_iterations; ++it)
             {
                 auto vec_pair = generateDisjointPair({pi1, pi2});
                 //            log("Input vector 1 : %s", inVecToStr(vec_pair.first).c_str());
                 //            log("Input vector 2 : %s", inVecToStr(vec_pair.second).c_str());
-                checkRemoval(input_symmetries.at(std::make_pair(pi1, pi2)),
+                checkRemoval(sym_set,
                              vec_pair.first.at(pi1), vec_pair.first.at(pi2),
                              vec_pair.second.at(pi1), vec_pair.second.at(pi2),
                              cir->evalOutput(po, vec_pair.first), cir->evalOutput(po, vec_pair.second));
 
-                if (input_symmetries.at(std::make_pair(pi1, pi2)).empty())
+                if (sym_set.empty())
                     break;
             }
-            confirmSymmetries(pi1, pi2, input_symmetries.at(std::make_pair(pi1, pi2)));
+            confirmSymmetries(pi1, pi2, sym_set);
+            if (!sym_set.empty())
+            {
+                sym = Symmetry::NESymmetry;
+                sym_group.insert(pi2);
+                unviewed_inputs.erase(pi2);
+            }
         }
+        if (sym != Symmetry::None)
+        {
+            sym_group.insert(pi1);
+            sym_partition.push_back({sym, sym_group});
+        }
+        else
+        {
+            non_sym_inputs.insert(pi1);
+        }
+        unviewed_inputs.erase(pi1);
     }
-    return std::move(input_symmetries);
+    if (!non_sym_inputs.empty())
+        sym_partition.push_back({Symmetry::None, non_sym_inputs});
+    return std::move(sym_partition);
 }
 
 SVSymmetryMap Simulator::simulateSVSym(std::size_t max_iterations)
@@ -160,7 +188,7 @@ void Simulator::checkRemoval(UnatenessSet &properties, bool in_value1, bool in_v
 
         if (erase)
         {
-            log("Erasing property %s", propToStr(prop).c_str());
+//            log("Erasing property %s", propToStr(prop).c_str());
             properties.erase(prop);
         }
     }
@@ -190,7 +218,7 @@ void Simulator::checkRemoval(SymmetrySet &symmetries, bool in_value11, bool in_v
 
         if (erase)
         {
-            log("Erasing symmetry %s", symToStr(sym).c_str());
+//            log("Erasing symmetry %s", symToStr(sym).c_str());
             symmetries.erase(sym);
         }
     }
@@ -206,7 +234,7 @@ void Simulator::checkRemoval(SVSymmetrySet &sv_symmetries, const std::string &pi
     {
         if (sv_sym.first != pi && in_vec.at(sv_sym.first) == sv_sym.second)
         {
-            log("Erasing sv-symmetry %s", svSymToStr(sv_sym).c_str());
+//            log("Erasing sv-symmetry %s", svSymToStr(sv_sym).c_str());
             sv_symmetries.erase(sv_sym);
         }
     }
@@ -226,15 +254,12 @@ void Simulator::confirmProperties(const std::string &pi, UnatenessSet &propertie
         {
             Circuit* neg_cofactor = new Circuit(*cir);
             neg_cofactor->stuckInput(pi, false);
-            neg_cofactor->print();
 
             Circuit *inv_pos_cofactor = new Circuit(*cir);
             inv_pos_cofactor->stuckInput(pi, true);
             inv_pos_cofactor->invertOutput(po);
-            inv_pos_cofactor->print();
 
             Circuit *product_miter = Circuit::getMiter(neg_cofactor, inv_pos_cofactor, FUNCTION_AND);
-            product_miter->print();
             unsat = checkMiter(product_miter);
 
             delete neg_cofactor;
@@ -253,7 +278,6 @@ void Simulator::confirmProperties(const std::string &pi, UnatenessSet &propertie
             pos_cofactor->stuckInput(pi, true);
 
             Circuit *product_miter = Circuit::getMiter(inv_neg_cofactor, pos_cofactor, FUNCTION_AND);
-            product_miter->print();
             unsat = checkMiter(product_miter);
 
             delete inv_neg_cofactor;
@@ -267,11 +291,11 @@ void Simulator::confirmProperties(const std::string &pi, UnatenessSet &propertie
 
         if (unsat)
         {
-            log("Property %s confirmed for input %s", propToStr(property).c_str(), pi.c_str());
+//            log("Property %s confirmed for input %s", propToStr(property).c_str(), pi.c_str());
         }
         else
         {
-            log ("Property %s was not confirmed for input %s, erasing", propToStr(property).c_str(), pi.c_str());
+//            log ("Property %s was not confirmed for input %s, erasing", propToStr(property).c_str(), pi.c_str());
             properties.erase(property);
         }
     }
@@ -292,15 +316,12 @@ void Simulator::confirmSymmetries(const std::string &pi1, const std::string &pi2
             Circuit* cofactor1 = new Circuit(*cir);
             cofactor1->stuckInput(pi1, false);
             cofactor1->stuckInput(pi2, true);
-            cofactor1->print();
 
             Circuit *cofactor2 = new Circuit(*cir);
             cofactor2->stuckInput(pi1, true);
             cofactor2->stuckInput(pi2, false);
-            cofactor2->print();
 
             Circuit *product_miter = Circuit::getMiter(cofactor1, cofactor2);
-            product_miter->print();
             unsat = checkMiter(product_miter);
 
             delete cofactor1;
@@ -321,7 +342,6 @@ void Simulator::confirmSymmetries(const std::string &pi1, const std::string &pi2
             cofactor2->stuckInput(pi2, true);
 
             Circuit *product_miter = Circuit::getMiter(cofactor1, cofactor2);
-            product_miter->print();
             unsat = checkMiter(product_miter);
 
             delete cofactor1;
@@ -335,11 +355,11 @@ void Simulator::confirmSymmetries(const std::string &pi1, const std::string &pi2
 
         if (unsat)
         {
-            log("Symmetry %s confirmed for inputs %s, %s", symToStr(symmetry).c_str(), pi1.c_str(), pi2.c_str());
+//            log("Symmetry %s confirmed for inputs %s, %s", symToStr(symmetry).c_str(), pi1.c_str(), pi2.c_str());
         }
         else
         {
-            log ("Symmetry %s was not confirmed for inputs %s, %s, erasing", symToStr(symmetry).c_str(), pi1.c_str(), pi2.c_str());
+//            log ("Symmetry %s was not confirmed for inputs %s, %s, erasing", symToStr(symmetry).c_str(), pi1.c_str(), pi2.c_str());
             symmetries.erase(symmetry);
         }
     }
@@ -356,15 +376,12 @@ void Simulator::confirmSymmetries(const std::string &pi, SVSymmetrySet &sv_symme
         Circuit* pos_cofactor = new Circuit(*cir);
         pos_cofactor->stuckInput(pi, true);
         pos_cofactor->stuckInput(sv_sym.first, sv_sym.second);
-        pos_cofactor->print();
 
         Circuit *neg_cofactor = new Circuit(*cir);
         neg_cofactor->stuckInput(pi, false);
         neg_cofactor->stuckInput(sv_sym.first, sv_sym.second);
-        neg_cofactor->print();
 
         Circuit *product_miter = Circuit::getMiter(pos_cofactor, neg_cofactor);
-        product_miter->print();
         unsat = checkMiter(product_miter);
 
         delete pos_cofactor;
@@ -373,11 +390,11 @@ void Simulator::confirmSymmetries(const std::string &pi, SVSymmetrySet &sv_symme
 
         if (unsat)
         {
-            log("SV-Symmetry %s confirmed for input %s", svSymToStr(sv_sym).c_str(), pi.c_str());
+//            log("SV-Symmetry %s confirmed for input %s", svSymToStr(sv_sym).c_str(), pi.c_str());
         }
         else
         {
-            log ("SV-Symmetry %s was not confirmed for input %s, erasing", svSymToStr(sv_sym).c_str(), pi.c_str());
+//            log ("SV-Symmetry %s was not confirmed for input %s, erasing", svSymToStr(sv_sym).c_str(), pi.c_str());
             sv_symmetries.erase(sv_sym);
         }
     }
@@ -426,9 +443,11 @@ std::string symToStr(Symmetry sym)
     case Symmetry::None:
         return "None";
     case Symmetry::NESymmetry:
-        return "NESymmetry";
+        return "NE";
     case Symmetry::ESymmetry:
-        return "ESymmetry";
+        return "E";
+    case Symmetry::BothNEandE:
+        return "NE & E";
     case Symmetry::Unknown:
         return "Unknown";
     default:
