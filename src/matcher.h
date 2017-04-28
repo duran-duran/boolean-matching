@@ -46,6 +46,8 @@ public:
     Matcher &splitBySimType2(std::size_t max_it);
 
     std::pair<POPartition, POPartition> getPOPartitions() const;
+
+    double calculatePossibleMatchings() const;
 private:
     Circuit *cir1, *cir2;
     POPartition cir1_po_partition, cir2_po_partition;

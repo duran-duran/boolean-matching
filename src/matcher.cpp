@@ -13,9 +13,9 @@ Matcher::Matcher(Circuit *cir1, Circuit *cir2) :
     cir2_po_partition = { {POSignature(cir1), IOSet(cir2->getOutputs().begin(), cir2->getOutputs().end())} };
 
     for (const auto& po :cir1->getOutputs())
-        cir1_pi_partitions.insert({po, { {PISignature(), IOSet(cones1.at(po)->getInputs().begin(), cones1.at(po)->getInputs().end())} } });
+        cir1_pi_partitions.insert({po, { {PISignature(), IOSet(cir1->getInputs().begin(), cir1->getInputs().end())} } });
     for (const auto& po :cir2->getOutputs())
-        cir2_pi_partitions.insert({po, { {PISignature(), IOSet(cones2.at(po)->getInputs().begin(), cones2.at(po)->getInputs().end())} } });
+        cir2_pi_partitions.insert({po, { {PISignature(), IOSet(cir2->getInputs().begin(), cir2->getInputs().end())} } });
 }
 
 Matcher::~Matcher()
@@ -173,6 +173,7 @@ void Matcher::splitBySupport(POPartition &po_partition, std::map<std::string, PI
         {
             std::size_t support_size = cones.at(po)->getInputs().size();
             aux_map[support_size].insert(po);
+            pi_partitions.at(po) = { {PISignature(), IOSet(cones.at(po)->getInputs().begin(), cones.at(po)->getInputs().end())} };
         }
         for (const auto &new_cluster : aux_map)
         {
@@ -404,6 +405,39 @@ bool Matcher::splitBySimType2(const std::string &po, const Cones &cones, PIParti
 std::pair<POPartition, POPartition> Matcher::getPOPartitions() const
 {
     return std::make_pair(cir1_po_partition, cir2_po_partition);
+}
+
+double Matcher::calculatePossibleMatchings() const
+{
+    double output_matches_cnt = 0;
+    std::map<std::string, IOSet> pi_matches;
+    for (const auto& po_cluster : cir1_po_partition)
+    {
+        POSignature sign = po_cluster.first;
+        if (cir2_po_partition.find(sign) != cir2_po_partition.end())
+        {
+            if (output_matches_cnt == 0)
+                output_matches_cnt = 1;
+            output_matches_cnt *= combCount(cir1_po_partition.at(sign).size(), cir2_po_partition.at(sign).size());
+            for (const auto &po1 : cir1_po_partition.at(sign))
+            {
+                for (const auto &po2 : cir2_po_partition.at(sign))
+                {
+                    for (std::size_t i = 0; i < sign.input_signatures.size(); ++i)
+                    {
+                        for (const auto &pi : cir1_pi_partitions.at(po1)[i].second)
+                            pi_matches[pi].insert(cir2_pi_partitions.at(po2)[i].second.begin(), cir2_pi_partitions.at(po2)[i].second.end());
+                    }
+                }
+            }
+        }
+    }
+    log("output matches: %e", output_matches_cnt);
+    double input_matches_cnt = (pi_matches.size() > 0) ? 1 : 0;
+    for (const auto &match : pi_matches)
+        input_matches_cnt *= static_cast<double> (match.second.size());
+    log("input matches: %e", input_matches_cnt);
+    return output_matches_cnt * input_matches_cnt;
 }
 
 POSignature::POSignature(Circuit *cir) :

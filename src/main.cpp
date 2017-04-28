@@ -1,4 +1,5 @@
 #include <iostream>
+#include <chrono>
 
 #include "defines.h"
 #include "utils.h"
@@ -210,15 +211,60 @@ int main(int argc, char * argv[])
                 *cir2 = parse_verilog(FileUtils::load_file(in_file2));
 
         Matcher matcher(cir1, cir2);
-        matcher.splitBySupport()
-               .splitByUnateness()
-               .splitBySymmetry()
-               .splitBySimType1(1000)
-               .splitBySimType2(1000);
 
-        auto partitions = matcher.getPOPartitions();
-        printPartition(partitions.first);
-        printPartition(partitions.second);
+        constexpr std::size_t max_it = 1000;
+
+        double init_matchings_cnt = permCount(cir1->getInputs().size(), cir2->getInputs().size()) *
+                                                combCount(cir1->getOutputs().size(), cir2->getOutputs().size());
+        log("output matches: %e", combCount(cir1->getOutputs().size(), cir2->getOutputs().size()));
+        log("input matches: %e", permCount(cir1->getInputs().size(), cir2->getInputs().size()));
+        log("Initial possible matchings: %e", init_matchings_cnt);
+
+        std::chrono::time_point<std::chrono::system_clock> start, end;
+        std::chrono::milliseconds elapsed;
+        log("Splitting by support...");
+        start = std::chrono::system_clock::now();
+        matcher.splitBySupport();
+        end = std::chrono::system_clock::now();
+        elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        log("Elapsed %dms", elapsed.count());
+        log("Possible matchings: %e", matcher.calculatePossibleMatchings());
+
+        log("Splitting by unateness...");
+        start = std::chrono::system_clock::now();
+        matcher.splitByUnateness();
+        end = std::chrono::system_clock::now();
+        elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        log("Elapsed %dms", elapsed.count());
+        log("Possible matchings: %e", matcher.calculatePossibleMatchings());
+
+        log("Splitting by symmetry...");
+        start = std::chrono::system_clock::now();
+        matcher.splitBySymmetry();
+        end = std::chrono::system_clock::now();
+        elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        log("Elapsed %dms", elapsed.count());
+        log("Possible matchings: %e", matcher.calculatePossibleMatchings());
+
+        log("Splitting by simulation type 1 (max_it = %u)...", max_it);
+        start = std::chrono::system_clock::now();
+        matcher.splitBySimType1(max_it);
+        end = std::chrono::system_clock::now();
+        elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        log("Elapsed %dms", elapsed.count());
+        log("Possible matchings: %e", matcher.calculatePossibleMatchings());
+
+        log("Splitting by simulation type 2 (max_it = %u)...", max_it);
+        start = std::chrono::system_clock::now();
+        matcher.splitBySimType2(max_it);
+        end = std::chrono::system_clock::now();
+        elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        log("Elapsed %dms", elapsed.count());
+        log("Possible matchings: %e", matcher.calculatePossibleMatchings());
+
+//        auto partitions = matcher.getPOPartitions();
+//        printPartition(partitions.first);
+//        printPartition(partitions.second);
         return OK;
     }
     else
